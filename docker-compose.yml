@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-learnin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-learnin}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-learnin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    env_file: ./server/.env
+    environment:
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: ./server
+    restart: unless-stopped
+    command: ["node", "dist/workers/ingestWorker.js"]
+    env_file: ./server/.env
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Optional: self-hosted Whisper transcription server for video uploads.
+  # Uncomment and set WHISPER_API_URL=http://whisper:9000 in server/.env to enable.
+  # whisper:
+  #   image: onerahmet/openai-whisper-asr-webservice:latest
+  #   restart: unless-stopped
+  #   environment:
+  #     ASR_MODEL: base
+  #     ASR_ENGINE: faster_whisper
+
+volumes:
+  pg_data:
+  redis_data:
+  uploads:
