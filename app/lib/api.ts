@@ -41,13 +41,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  auth: {
-    signup: (body: { name: string; email: string; password: string; goal?: string }) =>
-      request<{ token: string; user: User }>("/auth/signup", { method: "POST", body: JSON.stringify(body) }),
-    login: (body: { email: string; password: string }) =>
-      request<{ token: string; user: User }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
-  },
   me: () => request<{ user: User }>("/me"),
+  updateMe: (body: Partial<{ name: string; goal: string | null }>) =>
+    request<void>("/me", { method: "PATCH", body: JSON.stringify(body) }),
   documents: {
     list: () => request<{ documents: DocumentSummary[] }>("/documents"),
     get: (id: string) => request<DocumentDetail>(`/documents/${id}`),

@@ -51,6 +51,10 @@ export default function LoginScreen() {
 
           <Button label="Log in" onPress={onSubmit} loading={loading} disabled={!email || !password} style={{ marginTop: 28 }} />
 
+          <Link href="/(auth)/forgot-password" style={{ alignSelf: "center", marginTop: 16 }}>
+            <Text style={[typography.bodyMedium, { color: colors.textMuted }]}>Forgot password?</Text>
+          </Link>
+
           <View style={styles.footerRow}>
             <Text style={[typography.body, { color: colors.textMuted }]}>New here? </Text>
             <Link href="/(auth)/signup" replace>

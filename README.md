@@ -5,22 +5,47 @@ inline quizzes, then commit it to memory with spaced-repetition reviews and remi
 
 ## Structure
 
-- `server/` — Express API + BullMQ ingestion worker (Postgres + Redis), deployed via Docker Compose.
+- `server/` — Express API + BullMQ ingestion worker (Redis + Supabase Postgres), deployed via Docker Compose.
 - `app/` — Expo (React Native) Android app, expo-router based.
+
+## Setting up Supabase (accounts + database)
+
+Accounts and the Postgres database both live on [Supabase](https://supabase.com) —
+create a free project, then:
+
+1. **Project Settings → API** — copy the Project URL and `anon` `public` key into
+   `app/app.json`'s `extra.supabaseUrl` / `extra.supabaseAnonKey` (these are safe to
+   ship in the client; access is scoped by the JWT a user gets after logging in).
+2. **Project Settings → API → JWT Settings** — copy the JWT Secret into the server's
+   `SUPABASE_JWT_SECRET` (used to verify tokens the app sends — see below).
+3. **Project Settings → Database → Connection string** — copy the *Session pooler*
+   (or direct) connection string into the server's `DATABASE_URL`. Don't use the
+   *Transaction pooler* string; this app holds a persistent `pg.Pool`, which
+   transaction-mode pgbouncer doesn't support well.
+4. **Authentication → Providers → Email** — decide whether to require email
+   confirmation (on by default). The app handles both: if confirmation is required,
+   signup shows a "check your inbox" screen instead of dropping straight into the app.
+
+The server creates its own tables (`profiles`, `documents`, `blocks`, `cards`,
+`reviews`, `notification_prefs`) on boot, keyed off Supabase's built-in `auth.users` —
+you don't need to run any SQL by hand. Password reset, email confirmation, and token
+refresh are all handled by Supabase Auth; the app talks to it directly via
+`@supabase/supabase-js`, and the Express backend only verifies the resulting JWT.
 
 ## Running the backend
 
 ```bash
 cd server
-cp .env.example .env   # fill in OPENROUTER_API_KEY, JWT_SECRET, etc.
+cp .env.example .env   # fill in DATABASE_URL, SUPABASE_JWT_SECRET, OPENROUTER_API_KEY, etc.
 cd ..
 docker compose up --build
 ```
 
-This starts Postgres, Redis, the API (`:4000`), and the ingestion worker. The worker
-picks up uploaded lectures, extracts text (PDF via `pdf-parse`, video via a
-self-hosted Whisper-compatible server — see `WHISPER_API_URL` in `.env.example`),
-and calls an LLM via [OpenRouter](https://openrouter.ai) to generate the explainer + quiz document.
+This starts Redis, the API (`:4000`), and the ingestion worker (no local Postgres —
+that's Supabase now). The worker picks up uploaded lectures, extracts text (PDF via
+`pdf-parse`, video via a self-hosted Whisper-compatible server — see `WHISPER_API_URL`
+in `.env.example`), and calls an LLM via [OpenRouter](https://openrouter.ai) to
+generate the explainer + quiz document.
 
 Video transcription is optional: leave `WHISPER_API_URL` unset to support PDF-only
 uploads, or uncomment the `whisper` service in `docker-compose.yml` to self-host one.
@@ -35,7 +60,8 @@ npx expo start --android
 
 Point it at your backend by setting `extra.apiUrl` in `app/app.json` (defaults to
 `http://localhost:4000`, which only works from an Android emulator via `10.0.2.2` —
-set it to your VPS's address for a real device).
+set it to your VPS's address for a real device), and `extra.supabaseUrl` /
+`extra.supabaseAnonKey` as described above.
 
 ## Design
 

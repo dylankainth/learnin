@@ -9,7 +9,7 @@ export async function sendDueReviewReminders(): Promise<void> {
     `SELECT np.user_id, np.expo_push_token, u.name,
             COUNT(c.id) AS due_count
      FROM notification_prefs np
-     JOIN users u ON u.id = np.user_id
+     JOIN profiles u ON u.id = np.user_id
      JOIN cards c ON c.user_id = np.user_id AND c.due_at <= now()
      WHERE np.enabled = true
        AND np.expo_push_token IS NOT NULL

@@ -3,7 +3,6 @@ import cors from "cors";
 import { mkdir } from "fs/promises";
 import { ensureSchema } from "./db/index.js";
 import { env } from "./env.js";
-import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
 import { documentsRouter } from "./routes/documents.js";
 import { reviewRouter } from "./routes/review.js";
@@ -19,7 +18,6 @@ async function main() {
   app.use(express.json());
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
-  app.use("/auth", authRouter);
   app.use("/me", meRouter);
   app.use("/documents", documentsRouter);
   app.use("/review", reviewRouter);

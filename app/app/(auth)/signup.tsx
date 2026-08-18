@@ -15,18 +15,37 @@ export default function SignupScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkEmail, setCheckEmail] = useState(false);
 
   async function onSubmit() {
     setError(null);
     setLoading(true);
     try {
-      await signup(name.trim(), email.trim().toLowerCase(), password);
-      router.replace("/(onboarding)/goal");
+      const { needsEmailConfirmation } = await signup(name.trim(), email.trim().toLowerCase(), password);
+      if (needsEmailConfirmation) {
+        setCheckEmail(true);
+      } else {
+        router.replace("/(onboarding)/goal");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkEmail) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View style={styles.wrap}>
+          <Text style={typography.h1}>Check your inbox</Text>
+          <Text style={[typography.body, { color: colors.textMuted, marginTop: 10 }]}>
+            We sent a confirmation link to {email.trim()}. Tap it, then come back and log in.
+          </Text>
+          <Button label="Back to log in" onPress={() => router.replace("/(auth)/login")} style={{ marginTop: 28 }} />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (

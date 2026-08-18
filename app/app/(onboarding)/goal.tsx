@@ -22,8 +22,7 @@ export default function GoalScreen() {
   async function onContinue() {
     setSaving(true);
     try {
-      // Best-effort — goal is stored at signup already if chosen there; this
-      // screen lets the user set/change it right after onboarding.
+      if (selected) await api.updateMe({ goal: selected }).catch(() => {});
       router.replace("/(tabs)");
     } finally {
       setSaving(false);
