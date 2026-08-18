@@ -13,8 +13,10 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   redisUrl: required("REDIS_URL", "redis://localhost:6379"),
   jwtSecret: required("JWT_SECRET"),
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-opus-5",
+  openRouterApiKey: process.env.OPENROUTER_API_KEY,
+  openRouterModel: process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",
+  openRouterSiteUrl: process.env.OPENROUTER_SITE_URL ?? "https://github.com/dylankainth/learnin",
+  openRouterAppName: process.env.OPENROUTER_APP_NAME ?? "Learnin",
   whisperApiUrl: process.env.WHISPER_API_URL,
   uploadDir: process.env.UPLOAD_DIR ?? "./uploads",
 };

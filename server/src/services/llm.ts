@@ -1,9 +1,19 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import OpenAI from "openai";
 import { z } from "zod/v4";
 import { env } from "../env.js";
 
-const client = new Anthropic({ apiKey: env.anthropicApiKey });
+// OpenRouter exposes an OpenAI-compatible /chat/completions endpoint, so the
+// regular openai SDK works unmodified — just point baseURL at OpenRouter and
+// pass an OpenRouter API key. HTTP-Referer/X-Title are optional but let
+// OpenRouter attribute usage to this app on your dashboard.
+const client = new OpenAI({
+  apiKey: env.openRouterApiKey,
+  baseURL: "https://openrouter.ai/api/v1",
+  defaultHeaders: {
+    "HTTP-Referer": env.openRouterSiteUrl,
+    "X-Title": env.openRouterAppName,
+  },
+});
 
 // Single-shot budget: most single lectures (a 60-90min transcript, or a
 // lecture-length PDF) fit well inside this and give the model the whole
@@ -45,6 +55,13 @@ export type ExplainerBlock = z.infer<typeof explainerBlock>;
 export type QuizBlock = z.infer<typeof quizBlock>;
 export type GeneratedBlock = ExplainerBlock | QuizBlock;
 
+function toStrictJsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const { $schema, ...rest } = z.toJSONSchema(schema) as Record<string, unknown>;
+  return rest;
+}
+
+const CHUNK_RESULT_JSON_SCHEMA = toStrictJsonSchema(chunkResultSchema);
+
 const SYSTEM_PROMPT = `You are an expert teacher turning raw lecture material (a PDF's extracted text, or a video's transcript) into a long-form, scrollable study document in the style of quantum.country / Duolingo: clear, friendly explainer prose broken into short digestible sections, with a quiz question testing recall inserted right after each new idea before moving to the next one.
 
 Rules:
@@ -53,13 +70,13 @@ Rules:
 - Keep each explainer block focused on ONE idea (roughly 80-200 words) so a quiz can immediately follow it.
 - After every explainer block, add exactly one quiz block testing the idea just introduced. Vary between multiple-choice and short-answer (options: null) questions.
 - Quiz questions should test understanding and recall, not trivia — the kind of question that, reviewed later with spaced repetition, cements the concept in long-term memory.
-- Do not ask a quiz question about anything not yet explained.`;
+- Do not ask a quiz question about anything not yet explained.
+- Respond with JSON only, matching the given schema exactly.`;
 
 function buildUserPrompt(params: {
   title: string;
   text: string;
   priorSummary?: string;
-  isFinalChunk: boolean;
 }): string {
   const parts: string[] = [];
   if (params.priorSummary) {
@@ -76,23 +93,36 @@ function buildUserPrompt(params: {
   return parts.join("\n\n");
 }
 
-async function generateChunk(params: {
-  title: string;
-  text: string;
-  priorSummary?: string;
-  isFinalChunk: boolean;
-}) {
-  const response = await client.messages.parse({
-    model: env.anthropicModel,
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserPrompt(params) }],
-    output_config: { format: zodOutputFormat(chunkResultSchema) },
+async function generateChunk(params: { title: string; text: string; priorSummary?: string }) {
+  const completion = await client.chat.completions.create({
+    model: env.openRouterModel,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: buildUserPrompt(params) },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "lecture_chunk", strict: true, schema: CHUNK_RESULT_JSON_SCHEMA },
+    },
   });
-  if (!response.parsed_output) {
-    throw new Error("Claude did not return a parseable lecture document");
+
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) {
+    throw new Error("OpenRouter returned no content for lecture generation");
   }
-  return response.parsed_output;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("OpenRouter did not return valid JSON for lecture generation");
+  }
+
+  const result = chunkResultSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error(`OpenRouter response didn't match the expected schema: ${result.error.message}`);
+  }
+  return result.data;
 }
 
 function splitIntoChunks(text: string, budget: number): string[] {
@@ -124,7 +154,7 @@ export async function generateLectureDoc(title: string, fullText: string): Promi
   }
 
   if (text.length <= SINGLE_SHOT_CHAR_BUDGET) {
-    const result = await generateChunk({ title, text, isFinalChunk: true });
+    const result = await generateChunk({ title, text });
     return result.blocks;
   }
 
@@ -132,13 +162,8 @@ export async function generateLectureDoc(title: string, fullText: string): Promi
   const blocks: GeneratedBlock[] = [];
   let summary: string | undefined;
 
-  for (let i = 0; i < chunks.length; i++) {
-    const result = await generateChunk({
-      title,
-      text: chunks[i],
-      priorSummary: summary,
-      isFinalChunk: i === chunks.length - 1,
-    });
+  for (const chunk of chunks) {
+    const result = await generateChunk({ title, text: chunk, priorSummary: summary });
     blocks.push(...result.blocks);
     summary = result.running_summary;
   }
