@@ -8,6 +8,7 @@ import { StreakBadge } from "@/components/StreakBadge";
 import { DeckCard } from "@/components/DeckCard";
 import { CalendarHeatmap } from "@/components/CalendarHeatmap";
 import { StatsCard } from "@/components/StatsCard";
+import { LearningInsights } from "@/components/LearningInsights";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { DocumentSummary, ReviewStats } from "@/lib/types";
@@ -97,6 +98,12 @@ export default function HomeScreen() {
                     color={colors.blue}
                   />
                 </View>
+                <LearningInsights
+                  retentionRate={retention.retentionRate}
+                  avgReps={retention.avgReps}
+                  masteredCards={retention.mastered}
+                  lapseRate={retention.lapsed / Math.max(retention.studied, 1)}
+                />
                 <CalendarHeatmap data={heatmap} title="Study Activity (90d)" />
               </View>
             )}
