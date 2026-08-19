@@ -23,12 +23,8 @@ async function main() {
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
 
-  app.get("/download/app.apk", (_req, res) => {
-    res.download("public/downloads/app.apk", "learnin.apk", (err) => {
-      if (err && !res.headersSent) {
-        res.status(404).json({ error: "APK not available yet" });
-      }
-    });
+  app.get("/download/app.aab", (_req, res) => {
+    res.redirect("https://expo.dev/artifacts/eas/zU055cULQt1B7ijXpzepqAJFqGhRSwGoekH0Ujdj7rw.aab");
   });
 
   app.use("/me", meRouter);

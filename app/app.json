@@ -8,16 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "backgroundColor": "#6C4FE0"
-    },
     "android": {
       "package": "com.learnin.app",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6C4FE0"
-      },
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -31,7 +26,11 @@
     ],
     "extra": {
       "apiUrl": "http://localhost:4000",
-      "pocketbaseUrl": "http://localhost:8090"
+      "pocketbaseUrl": "http://localhost:8090",
+      "router": {},
+      "eas": {
+        "projectId": "89a85734-b010-4c5d-86a2-605ab316c55f"
+      }
     }
   }
 }
