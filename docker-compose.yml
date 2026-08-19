@@ -24,7 +24,7 @@ services:
   api:
     build: ./server
     restart: unless-stopped
-    env_file: ./server/.env
+    env_file: ./.env
     environment:
       PORT: 4000
     ports:
@@ -39,7 +39,7 @@ services:
     build: ./server
     restart: unless-stopped
     command: ["node", "dist/workers/ingestWorker.js"]
-    env_file: ./server/.env
+    env_file: ./.env
     depends_on:
       pocketbase:
         condition: service_healthy
