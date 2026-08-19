@@ -22,17 +22,29 @@ export default function CreateTopicScreen() {
     try {
       console.log("Creating topic:", { name, description });
       const res = await api.topics.create(name, description || undefined);
-      console.log("Topic created successfully:", res.topic.id);
+      console.log("Topic created successfully:", res.topic);
+
+      if (!res.topic?.id) {
+        throw new Error("No topic ID returned from server");
+      }
+
       setLoading(false);
-      // Navigate after setting loading to false
-      setTimeout(() => {
-        router.push(`/topic/${res.topic.id}`);
-      }, 100);
+      // Small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 500));
+      router.push(`/topic/${res.topic.id}`);
     } catch (err) {
-      console.error("Failed to create topic:", err);
-      setLoading(false);
       const errorMsg = err instanceof Error ? err.message : String(err);
-      Alert.alert("Failed to create topic", errorMsg);
+      console.error("Topic creation failed:", {
+        error: errorMsg,
+        type: err instanceof Error ? err.constructor.name : typeof err,
+      });
+      setLoading(false);
+
+      Alert.alert(
+        "Failed to create topic",
+        `${errorMsg}\n\nMake sure the server is running and deployed.`,
+        [{ text: "OK" }]
+      );
     }
   }
 
