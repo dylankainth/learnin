@@ -13,6 +13,13 @@ async function main() {
   app.use(cors());
   app.use(express.json());
 
+  // Root endpoint
+  app.get("/", (_req, res) => res.json({ 
+    app: "learnin",
+    status: "running",
+    version: "0.1.0"
+  }));
+
   app.get("/health", (_req, res) => res.json({ ok: true }));
   app.use("/me", meRouter);
   app.use("/documents", documentsRouter);
