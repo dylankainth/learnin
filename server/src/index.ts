@@ -9,8 +9,6 @@ import { notificationsRouter } from "./routes/notifications.js";
 import { startReminderCron } from "./services/push.js";
 
 async function main() {
-  await ensureCollections();
-
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -29,6 +27,12 @@ async function main() {
   startReminderCron();
 
   app.listen(env.port, () => console.log(`API listening on :${env.port}`));
+
+  // Initialize PocketBase collections asynchronously (non-blocking)
+  ensureCollections().catch((err) => {
+    console.error("Failed to initialize PocketBase collections:", err);
+    console.log("API will continue running but features requiring PocketBase may not work");
+  });
 }
 
 main().catch((err) => {
