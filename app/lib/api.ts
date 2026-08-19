@@ -72,4 +72,16 @@ export const api = {
     retention: () =>
       request<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number }>("/progress/retention"),
   },
+  chat: {
+    start: (documentId: string) =>
+      request<{ sessionId: string; initialPrompt: string; systemPrompt: string }>("/chat/start", {
+        method: "POST",
+        body: JSON.stringify({ documentId }),
+      }),
+    message: (userMessage: string, documentId: string) =>
+      request<{ response: string }>("/chat/message", {
+        method: "POST",
+        body: JSON.stringify({ userMessage, documentId }),
+      }),
+  },
 };

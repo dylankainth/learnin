@@ -66,7 +66,11 @@ export default function DocumentReader() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Header title={document.title} onClose={() => router.back()} />
+      <Header
+        title={document.title}
+        onClose={() => router.back()}
+        onChat={() => router.push({ pathname: "/chat/[documentId]", params: { documentId: id, documentTitle: document.title } })}
+      />
       <FlatList
         data={blocks}
         keyExtractor={(b) => b.id}
@@ -80,7 +84,7 @@ export default function DocumentReader() {
   );
 }
 
-function Header({ title, onClose }: { title: string; onClose: () => void }) {
+function Header({ title, onClose, onChat }: { title: string; onClose: () => void; onChat: () => void }) {
   return (
     <View style={styles.header}>
       <Pressable onPress={onClose} hitSlop={12}>
@@ -89,6 +93,9 @@ function Header({ title, onClose }: { title: string; onClose: () => void }) {
       <Text style={[typography.h2, { flex: 1, marginLeft: 14 }]} numberOfLines={1}>
         {title}
       </Text>
+      <Pressable onPress={onChat} hitSlop={12}>
+        <Text style={[typography.bodyMedium, { color: colors.primary }]}>💬</Text>
+      </Pressable>
     </View>
   );
 }
