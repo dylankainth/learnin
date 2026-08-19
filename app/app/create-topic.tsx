@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Alert, TextInput, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Pressable, Alert, TextInput, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { colors } from "@/theme/colors";
@@ -21,7 +21,9 @@ export default function CreateTopicScreen() {
     setLoading(true);
     try {
       const res = await api.topics.create(name, description || undefined);
-      router.replace(`/topic/${res.topic.id}`);
+      // Use push with proper reset instead of replace
+      router.push(`/topic/${res.topic.id}`);
+      setLoading(false);
     } catch (err) {
       Alert.alert("Failed to create topic", err instanceof Error ? err.message : "");
       setLoading(false);
@@ -30,13 +32,18 @@ export default function CreateTopicScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false} scrollEventThrottle={16}>
         {/* Header with illustration */}
         <View style={styles.header}>
-          <BlobMascot color={colors.primary} size={120} mood="excited" />
-          <Text style={[typography.h1, { marginTop: 24, textAlign: "center" }]}>Start a New Topic</Text>
-          <Text style={[typography.body, { color: colors.textMuted, marginTop: 8, textAlign: "center" }]}>
-            Organize your learning around a specific subject. Add PDFs, videos, or documents to build interactive study cards.
+          <BlobMascot color={colors.primary} size={100} mood="excited" />
+          <Text style={[typography.h1, { marginTop: 18, textAlign: "center" }]}>Start a New Topic</Text>
+          <Text style={[typography.body, { color: colors.textMuted, marginTop: 6, textAlign: "center", fontSize: 14 }]}>
+            Organize your learning around a specific subject. Add PDFs, videos, or documents.
           </Text>
         </View>
 
@@ -130,6 +137,7 @@ export default function CreateTopicScreen() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -137,36 +145,38 @@ export default function CreateTopicScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   header: {
     alignItems: "center",
-    marginBottom: 32,
-    paddingBottom: 24,
+    marginBottom: 28,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   infoCards: {
-    gap: 12,
-    marginBottom: 32,
+    gap: 10,
+    marginBottom: 28,
   },
   infoCard: {
     flexDirection: "row",
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     borderLeftWidth: 4,
-    padding: 14,
+    padding: 12,
     alignItems: "flex-start",
   },
   infoIcon: {
-    fontSize: 28,
+    fontSize: 24,
+    marginTop: 2,
   },
   inputSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   input: {
     borderWidth: 1,
@@ -181,6 +191,7 @@ const styles = StyleSheet.create({
   buttonGroup: {
     flexDirection: "row",
     gap: 12,
+    marginTop: 8,
   },
   secondaryButton: {
     flex: 1,
