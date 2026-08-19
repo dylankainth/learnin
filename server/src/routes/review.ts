@@ -12,14 +12,26 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
 
   const limit = Math.min(Number(req.query.limit ?? 20), 50);
   const documentId = typeof req.query.documentId === "string" ? req.query.documentId : null;
+  const interleave = req.query.interleave !== "false"; // Default true
 
   const filterExpr = documentId
     ? "user_id = {:uid} && due_at <= {:now} && document_id = {:docId}"
     : "user_id = {:uid} && due_at <= {:now}";
-  const { items: cards } = await pb.collection("cards").getList(1, limit, {
+  const { items: cards } = await pb.collection("cards").getList(1, limit * 3, {
     filter: pb.filter(filterExpr, { uid: req.userId, now: new Date(), docId: documentId }),
-    sort: "due_at",
+    sort: interleave ? "-due_at" : "due_at",
   });
+
+  // Interleave: shuffle order but keep due cards prioritized
+  let finalCards = cards.slice(0, limit);
+  if (interleave && !documentId && cards.length > limit) {
+    // Fisher-Yates shuffle for randomization
+    finalCards = cards.slice(0, limit);
+    for (let i = finalCards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [finalCards[i], finalCards[j]] = [finalCards[j], finalCards[i]];
+    }
+  }
 
   const docs = await pb.collection("documents").getFullList({
     filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
@@ -28,7 +40,7 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
   const titleById = new Map(docs.map((d) => [d.id, d.title]));
 
   res.json({
-    cards: cards.map((c) => ({
+    cards: finalCards.map((c) => ({
       id: c.id,
       question: c.question,
       options: c.options ?? null,
@@ -37,6 +49,8 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
       due_at: c.due_at,
       document_title: titleById.get(c.document_id) ?? "",
       question_type: c.question_type ?? "multiple-choice",
+      elaboration_prompt: c.elaboration_prompt,
+      difficulty: c.difficulty ?? 2,
     })),
   });
 });

@@ -7,6 +7,8 @@ import { typography, radii } from "@/theme/typography";
 import { BlobMascot } from "@/components/BlobMascot";
 import { ConfidenceRating } from "@/components/ConfidenceRating";
 import { QuestionRenderer } from "@/components/QuestionRenderer";
+import { PomodoroTimer } from "@/components/PomodoroTimer";
+import { ElaborationPrompt } from "@/components/ElaborationPrompt";
 import { api } from "@/lib/api";
 import type { DueCard } from "@/lib/types";
 
@@ -25,6 +27,7 @@ export default function ReviewSession() {
   const [userText, setUserText] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [showElaboration, setShowElaboration] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export default function ReviewSession() {
       setUserText("");
       setRevealed(false);
       setConfidence(null);
+      setShowElaboration(false);
     } finally {
       setSubmitting(false);
     }
@@ -77,6 +81,8 @@ export default function ReviewSession() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={styles.wrap}>
+        <PomodoroTimer initialSeconds={25 * 60} />
+
         <View style={styles.progressRow}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Text style={[typography.bodyMedium, { color: colors.textMuted }]}>Close</Text>
@@ -139,13 +145,21 @@ export default function ReviewSession() {
             </Pressable>
           ) : !confidence ? (
             <ConfidenceRating value={confidence} onChange={setConfidence} />
+          ) : showElaboration && card.elaboration_prompt ? (
+            <ElaborationPrompt prompt={card.elaboration_prompt} onSubmit={() => submitRating(3)} />
           ) : (
             <View style={styles.ratingRow}>
               {RATINGS.map((r) => (
                 <Pressable
                   key={r.value}
                   disabled={submitting}
-                  onPress={() => submitRating(r.value)}
+                  onPress={() => {
+                    if (card.elaboration_prompt) {
+                      setShowElaboration(true);
+                    } else {
+                      submitRating(r.value);
+                    }
+                  }}
                   style={[styles.ratingBtn, { backgroundColor: r.color, opacity: submitting ? 0.6 : 1 }]}
                 >
                   <Text style={[typography.caption, { color: "#fff" }]}>{r.label}</Text>

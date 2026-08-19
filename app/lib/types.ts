@@ -57,6 +57,8 @@ export interface DueCard {
   due_at: string;
   document_title: string;
   question_type?: "multiple-choice" | "free-text" | "cloze" | "true-false";
+  elaboration_prompt?: string;
+  difficulty?: number;
 }
 
 export interface ReviewStats {

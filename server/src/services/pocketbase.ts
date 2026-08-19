@@ -121,6 +121,8 @@ export async function ensureCollections(): Promise<void> {
     { name: "last_reviewed_at", type: "date" },
     { name: "confidence_pre_rating", type: "number" },
     { name: "question_type", type: "text" },
+    { name: "elaboration_prompt", type: "text" },
+    { name: "difficulty", type: "number" },
   ]);
 
   await upsertCollection("reviews", [
@@ -137,5 +139,15 @@ export async function ensureCollections(): Promise<void> {
     { name: "timezone", type: "text" },
     { name: "expo_push_token", type: "text" },
     { name: "last_reminded_at", type: "date" },
+  ]);
+
+  await upsertCollection("user_stats", [
+    { name: "user_id", type: "text" },
+    { name: "xp", type: "number" },
+    { name: "badges", type: "json" },
+    { name: "daily_goal_cards", type: "number" },
+    { name: "cards_reviewed_today", type: "number" },
+    { name: "goal_completed_today", type: "bool" },
+    { name: "last_review_date", type: "date" },
   ]);
 }
