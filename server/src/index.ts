@@ -6,6 +6,7 @@ import { meRouter } from "./routes/me.js";
 import { documentsRouter } from "./routes/documents.js";
 import { reviewRouter } from "./routes/review.js";
 import { notificationsRouter } from "./routes/notifications.js";
+import { progressRouter } from "./routes/progress.js";
 import { startReminderCron } from "./services/push.js";
 
 async function main() {
@@ -31,6 +32,7 @@ async function main() {
   app.use("/documents", documentsRouter);
   app.use("/review", reviewRouter);
   app.use("/notifications", notificationsRouter);
+  app.use("/progress", progressRouter);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);

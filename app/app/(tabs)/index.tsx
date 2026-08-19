@@ -6,6 +6,8 @@ import { colors } from "@/theme/colors";
 import { typography, radii } from "@/theme/typography";
 import { StreakBadge } from "@/components/StreakBadge";
 import { DeckCard } from "@/components/DeckCard";
+import { CalendarHeatmap } from "@/components/CalendarHeatmap";
+import { StatsCard } from "@/components/StatsCard";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { DocumentSummary, ReviewStats } from "@/lib/types";
@@ -14,12 +16,25 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
+  const [retention, setRetention] = useState<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [docsRes, statsRes] = await Promise.all([api.documents.list(), api.review.stats()]);
-    setDocuments(docsRes.documents);
-    setStats(statsRes);
+    try {
+      const [docsRes, statsRes, heatmapRes, retentionRes] = await Promise.all([
+        api.documents.list(),
+        api.review.stats(),
+        api.progress.heatmap(90),
+        api.progress.retention(),
+      ]);
+      setDocuments(docsRes.documents);
+      setStats(statsRes);
+      setHeatmap(heatmapRes.heatmap);
+      setRetention(retentionRes);
+    } catch {
+      // Errors already handled by API
+    }
   }, []);
 
   useFocusEffect(
@@ -62,6 +77,28 @@ export default function HomeScreen() {
               <Pressable style={styles.reviewCta} onPress={() => router.push("/review/session")}>
                 <Text style={[typography.button, { color: "#fff" }]}>Start today's review</Text>
               </Pressable>
+            )}
+
+            {retention && (
+              <View style={{ gap: 12 }}>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>YOUR PROGRESS</Text>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <StatsCard
+                    label="Mastered"
+                    value={retention.mastered}
+                    icon="✨"
+                    color={colors.success}
+                    subtext={`${retention.retentionRate}% retention`}
+                  />
+                  <StatsCard
+                    label="Studied"
+                    value={retention.studied}
+                    icon="📚"
+                    color={colors.blue}
+                  />
+                </View>
+                <CalendarHeatmap data={heatmap} title="Study Activity (90d)" />
+              </View>
             )}
 
             <View style={styles.sectionHeaderRow}>

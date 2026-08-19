@@ -67,4 +67,9 @@ export const api = {
     updatePrefs: (body: Partial<{ enabled: boolean; reminderHourLocal: number; timezone: string }>) =>
       request<void>("/notifications/prefs", { method: "PATCH", body: JSON.stringify(body) }),
   },
+  progress: {
+    heatmap: (days = 90) => request<{ heatmap: { date: string; count: number }[] }>(`/progress/heatmap?days=${days}`),
+    retention: () =>
+      request<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number }>("/progress/retention"),
+  },
 };
