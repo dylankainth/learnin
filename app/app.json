@@ -26,7 +26,7 @@
     ],
     "extra": {
       "apiUrl": "https://learnin.projects.dylankainth.com",
-      "pocketbaseUrl": "http://localhost:8090",
+      "pocketbaseUrl": "https://db.learnin.projects.dylankainth.com",
       "router": {},
       "eas": {
         "projectId": "89a85734-b010-4c5d-86a2-605ab316c55f"
