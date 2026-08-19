@@ -5,6 +5,8 @@ import type {
   DueCard,
   NotificationPrefs,
   ReviewStats,
+  Topic,
+  TopicDetail,
   User,
 } from "./types";
 
@@ -44,15 +46,35 @@ export const api = {
   me: () => request<{ user: User }>("/me"),
   updateMe: (body: Partial<{ name: string; goal: string | null }>) =>
     request<void>("/me", { method: "PATCH", body: JSON.stringify(body) }),
+  topics: {
+    list: () => request<{ topics: Topic[] }>("/topics"),
+    get: (id: string) => request<TopicDetail>(`/topics/${id}`),
+    create: (name: string, description?: string) =>
+      request<{ topic: Topic }>("/topics", {
+        method: "POST",
+        body: JSON.stringify({ name, description }),
+      }),
+    update: (id: string, name: string, description?: string) =>
+      request<{ topic: Topic }>(`/topics/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, description }),
+      }),
+    delete: (id: string) => request<void>(`/topics/${id}`, { method: "DELETE" }),
+  },
   documents: {
-    list: () => request<{ documents: DocumentSummary[] }>("/documents"),
+    list: (topicId?: string) =>
+      request<{ documents: DocumentSummary[] }>(`/documents${topicId ? `?topicId=${topicId}` : ""}`),
     get: (id: string) => request<DocumentDetail>(`/documents/${id}`),
     upload: (form: FormData) => request<{ document: DocumentSummary }>("/documents", { method: "POST", body: form }),
     remove: (id: string) => request<void>(`/documents/${id}`, { method: "DELETE" }),
   },
   review: {
-    due: (limit = 20, documentId?: string) =>
-      request<{ cards: DueCard[] }>(`/review/due?limit=${limit}${documentId ? `&documentId=${documentId}` : ""}`),
+    due: (limit = 20, filters?: { documentId?: string; topicId?: string }) => {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (filters?.documentId) params.append("documentId", filters.documentId);
+      if (filters?.topicId) params.append("topicId", filters.topicId);
+      return request<{ cards: DueCard[] }>(`/review/due?${params.toString()}`);
+    },
     stats: () => request<ReviewStats>("/review/stats"),
     submit: (cardId: string, rating: 1 | 2 | 3 | 4, confidence?: number) =>
       request<{ dueAt: string; intervalDays: number }>(`/review/${cardId}`, {

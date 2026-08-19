@@ -5,17 +5,17 @@ import { useFocusEffect, router } from "expo-router";
 import { colors } from "@/theme/colors";
 import { typography, radii } from "@/theme/typography";
 import { StreakBadge } from "@/components/StreakBadge";
-import { DeckCard } from "@/components/DeckCard";
+import { TopicCard } from "@/components/TopicCard";
 import { CalendarHeatmap } from "@/components/CalendarHeatmap";
 import { StatsCard } from "@/components/StatsCard";
 import { LearningInsights } from "@/components/LearningInsights";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import type { DocumentSummary, ReviewStats } from "@/lib/types";
+import type { Topic, ReviewStats } from "@/lib/types";
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
   const [retention, setRetention] = useState<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number } | null>(null);
@@ -23,13 +23,13 @@ export default function HomeScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [docsRes, statsRes, heatmapRes, retentionRes] = await Promise.all([
-        api.documents.list(),
+      const [topicsRes, statsRes, heatmapRes, retentionRes] = await Promise.all([
+        api.topics.list(),
         api.review.stats(),
         api.progress.heatmap(90),
         api.progress.retention(),
       ]);
-      setDocuments(docsRes.documents);
+      setTopics(topicsRes.topics);
       setStats(statsRes);
       setHeatmap(heatmapRes.heatmap);
       setRetention(retentionRes);
@@ -56,8 +56,8 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
       <FlatList
-        data={documents}
-        keyExtractor={(d) => d.id}
+        data={topics}
+        keyExtractor={(t) => t.id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         ListHeaderComponent={
@@ -109,28 +109,29 @@ export default function HomeScreen() {
             )}
 
             <View style={styles.sectionHeaderRow}>
-              <Text style={typography.h2}>Your lectures</Text>
+              <Text style={typography.h2}>Your topics</Text>
               <Pressable onPress={() => router.push("/upload")}>
-                <Text style={[typography.bodyMedium, { color: colors.primary }]}>+ Upload</Text>
+                <Text style={[typography.bodyMedium, { color: colors.primary }]}>+ New</Text>
               </Pressable>
             </View>
           </View>
         }
         renderItem={({ item }) => (
-          <DeckCard
+          <TopicCard
             id={item.id}
-            title={item.title}
-            dueCount={Number(item.due_count)}
-            cardCount={Number(item.card_count)}
-            status={item.status}
-            onPress={() => router.push(`/document/${item.id}`)}
+            name={item.name}
+            description={item.description}
+            contentCount={item.content_count}
+            dueCount={item.due_count}
+            cardCount={item.card_count}
+            onPress={() => router.push(`/topic/${item.id}`)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[typography.body, { color: colors.textMuted, textAlign: "center" }]}>
-              No lectures yet. Upload a PDF or a recording to get your first study deck.
+              No topics yet. Create one and add content to get started.
             </Text>
           </View>
         }

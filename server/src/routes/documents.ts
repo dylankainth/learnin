@@ -18,6 +18,7 @@ const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime", "video/x-matroska",
 documentsRouter.post("/", upload.single("file"), async (req: AuthedRequest, res) => {
   const file = req.file;
   const title = typeof req.body.title === "string" && req.body.title.trim() ? req.body.title.trim() : file?.originalname;
+  const topicId = typeof req.body.topic_id === "string" ? req.body.topic_id : null;
   if (!file) {
     res.status(400).json({ error: "No file uploaded (expected multipart field 'file')" });
     return;
@@ -39,21 +40,35 @@ documentsRouter.post("/", upload.single("file"), async (req: AuthedRequest, res)
   form.append("source_type", sourceType);
   form.append("original_filename", file.originalname);
   form.append("status", "pending");
+  if (topicId) form.append("topic_id", topicId);
   form.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
 
   const doc = await pb.collection("documents").create(form);
   await enqueueIngest(doc.id);
   res.status(201).json({
-    document: { id: doc.id, title: doc.title, source_type: doc.source_type, status: doc.status, created_at: doc.created },
+    document: {
+      id: doc.id,
+      title: doc.title,
+      source_type: doc.source_type,
+      status: doc.status,
+      created_at: doc.created,
+      topic_id: doc.topic_id,
+    },
   });
 });
 
 documentsRouter.get("/", async (req: AuthedRequest, res) => {
   await ensureSuperuserAuth();
 
+  const topicId = req.query.topicId as string | undefined;
+  let filter = pb.filter("user_id = {:uid}", { uid: req.userId });
+  if (topicId) {
+    filter = pb.filter("user_id = {:uid} && topic_id = {:tid}", { uid: req.userId, tid: topicId });
+  }
+
   const [docs, cards] = await Promise.all([
     pb.collection("documents").getFullList({
-      filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+      filter,
       sort: "-created",
     }),
     pb.collection("cards").getFullList({
@@ -82,6 +97,7 @@ documentsRouter.get("/", async (req: AuthedRequest, res) => {
         created_at: d.created,
         card_count: String(counts.cardCount),
         due_count: String(counts.dueCount),
+        topic_id: d.topic_id,
       };
     }),
   });

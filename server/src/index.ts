@@ -3,6 +3,7 @@ import cors from "cors";
 import { ensureCollections } from "./services/pocketbase.js";
 import { env } from "./env.js";
 import { meRouter } from "./routes/me.js";
+import { topicsRouter } from "./routes/topics.js";
 import { documentsRouter } from "./routes/documents.js";
 import { reviewRouter } from "./routes/review.js";
 import { notificationsRouter } from "./routes/notifications.js";
@@ -31,6 +32,7 @@ async function main() {
   });
 
   app.use("/me", meRouter);
+  app.use("/topics", topicsRouter);
   app.use("/documents", documentsRouter);
   app.use("/review", reviewRouter);
   app.use("/notifications", notificationsRouter);

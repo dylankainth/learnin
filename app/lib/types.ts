@@ -5,6 +5,17 @@ export interface User {
   goal: string | null;
 }
 
+export interface Topic {
+  id: string;
+  name: string;
+  description?: string;
+  color_accent?: string;
+  created_at: string;
+  content_count: number;
+  card_count: number;
+  due_count: number;
+}
+
 export interface DocumentSummary {
   id: string;
   title: string;
@@ -13,6 +24,7 @@ export interface DocumentSummary {
   created_at: string;
   card_count: string;
   due_count: string;
+  topic_id?: string;
 }
 
 export interface ExplainerBlock {
@@ -56,6 +68,8 @@ export interface DueCard {
   explanation: string;
   due_at: string;
   document_title: string;
+  topic_id?: string;
+  topic_name?: string;
   question_type?: "multiple-choice" | "free-text" | "cloze" | "true-false";
   elaboration_prompt?: string;
   difficulty?: number;
@@ -72,4 +86,9 @@ export interface NotificationPrefs {
   enabled: boolean;
   reminder_hour_local: number;
   timezone: string;
+}
+
+export interface TopicDetail {
+  topic: Topic;
+  contents: DocumentSummary[];
 }

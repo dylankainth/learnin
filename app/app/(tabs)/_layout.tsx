@@ -2,7 +2,7 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { colors } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
-import { HomeIcon, ReviewIcon, LibraryIcon, ProfileIcon } from "@/components/TabBarIcon";
+import { HomeIcon, ReviewIcon, ProfileIcon } from "@/components/TabBarIcon";
 
 export default function TabsLayout() {
   return (
@@ -27,7 +27,6 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
       <Tabs.Screen name="review" options={{ title: "Review", tabBarIcon: ({ color }) => <ReviewIcon color={color} /> }} />
-      <Tabs.Screen name="library" options={{ title: "Library", tabBarIcon: ({ color }) => <LibraryIcon color={color} /> }} />
       <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ color }) => <ProfileIcon color={color} /> }} />
     </Tabs>
   );

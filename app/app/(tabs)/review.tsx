@@ -6,17 +6,17 @@ import { colors, accentFor } from "@/theme/colors";
 import { typography, radii } from "@/theme/typography";
 import { BlobMascot } from "@/components/BlobMascot";
 import { api } from "@/lib/api";
-import type { DocumentSummary, ReviewStats } from "@/lib/types";
+import type { Topic, ReviewStats } from "@/lib/types";
 
 export default function ReviewScreen() {
-  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      Promise.all([api.documents.list(), api.review.stats()])
-        .then(([d, s]) => {
-          setDocuments(d.documents.filter((doc) => doc.status === "ready" && Number(doc.due_count) > 0));
+      Promise.all([api.topics.list(), api.review.stats()])
+        .then(([t, s]) => {
+          setTopics(t.topics.filter((topic) => Number(topic.due_count) > 0));
           setStats(s);
         })
         .catch(() => {});
@@ -30,13 +30,13 @@ export default function ReviewScreen() {
       <View style={styles.header}>
         <Text style={typography.h1}>Review</Text>
         <Text style={[typography.body, { color: colors.textMuted, marginTop: 4 }]}>
-          Pick a lecture, or clear everything due at once.
+          Pick a topic, or review everything due.
         </Text>
       </View>
 
       <FlatList
-        data={documents}
-        keyExtractor={(d) => d.id}
+        data={topics}
+        keyExtractor={(t) => t.id}
         numColumns={2}
         columnWrapperStyle={{ gap: 14 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 14 }}
@@ -49,21 +49,21 @@ export default function ReviewScreen() {
           ) : (
             <View style={styles.emptyAll}>
               <Text style={[typography.body, { color: colors.textMuted, textAlign: "center" }]}>
-                Nothing due right now — come back later or upload a new lecture.
+                Nothing due right now — come back later or upload new content.
               </Text>
             </View>
           )
         }
         renderItem={({ item }) => {
-          const accent = accentFor(item.title);
+          const accent = accentFor(item.name);
           return (
             <Pressable
               style={[styles.tile, { backgroundColor: accent.bg }]}
-              onPress={() => router.push(`/review/session?documentId=${item.id}`)}
+              onPress={() => router.push({ pathname: "/review/session", params: { topicId: item.id } })}
             >
               <BlobMascot color={accent.fg} size={44} withFace={false} />
               <Text style={[typography.bodyMedium, { marginTop: 10 }]} numberOfLines={2}>
-                {item.title}
+                {item.name}
               </Text>
               <Text style={[typography.caption, { color: accent.fg, marginTop: 2 }]}>{item.due_count} due</Text>
             </Pressable>

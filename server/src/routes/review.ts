@@ -12,19 +12,21 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
 
   const limit = Math.min(Number(req.query.limit ?? 20), 50);
   const documentId = typeof req.query.documentId === "string" ? req.query.documentId : null;
+  const topicId = typeof req.query.topicId === "string" ? req.query.topicId : null;
   const interleave = req.query.interleave !== "false"; // Default true
 
-  const filterExpr = documentId
-    ? "user_id = {:uid} && due_at <= {:now} && document_id = {:docId}"
-    : "user_id = {:uid} && due_at <= {:now}";
+  let filterExpr = "user_id = {:uid} && due_at <= {:now}";
+  if (documentId) filterExpr += " && document_id = {:docId}";
+  if (topicId) filterExpr += " && topic_id = {:tid}";
+
   const { items: cards } = await pb.collection("cards").getList(1, limit * 3, {
-    filter: pb.filter(filterExpr, { uid: req.userId, now: new Date(), docId: documentId }),
+    filter: pb.filter(filterExpr, { uid: req.userId, now: new Date(), docId: documentId, tid: topicId }),
     sort: interleave ? "-due_at" : "due_at",
   });
 
   // Interleave: shuffle order but keep due cards prioritized
   let finalCards = cards.slice(0, limit);
-  if (interleave && !documentId && cards.length > limit) {
+  if (interleave && !documentId && !topicId && cards.length > limit) {
     // Fisher-Yates shuffle for randomization
     finalCards = cards.slice(0, limit);
     for (let i = finalCards.length - 1; i > 0; i--) {
@@ -33,11 +35,18 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
     }
   }
 
-  const docs = await pb.collection("documents").getFullList({
-    filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
-    fields: "id,title",
-  });
+  const [docs, topics] = await Promise.all([
+    pb.collection("documents").getFullList({
+      filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+      fields: "id,title",
+    }),
+    pb.collection("topics").getFullList({
+      filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+      fields: "id,name",
+    }),
+  ]);
   const titleById = new Map(docs.map((d) => [d.id, d.title]));
+  const nameById = new Map(topics.map((t) => [t.id, t.name]));
 
   res.json({
     cards: finalCards.map((c) => ({
@@ -48,6 +57,8 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
       explanation: c.explanation,
       due_at: c.due_at,
       document_title: titleById.get(c.document_id) ?? "",
+      topic_id: c.topic_id,
+      topic_name: c.topic_id ? nameById.get(c.topic_id) : undefined,
       question_type: c.question_type ?? "multiple-choice",
       elaboration_prompt: c.elaboration_prompt,
       difficulty: c.difficulty ?? 2,

@@ -88,6 +88,13 @@ export async function ensureCollections(): Promise<void> {
     "auth",
   );
 
+  await upsertCollection("topics", [
+    { name: "user_id", type: "text" },
+    { name: "name", type: "text" },
+    { name: "description", type: "text" },
+    { name: "color_accent", type: "text" },
+  ]);
+
   await upsertCollection("documents", [
     { name: "user_id", type: "text" },
     { name: "title", type: "text" },
@@ -96,6 +103,7 @@ export async function ensureCollections(): Promise<void> {
     { name: "file", type: "file", maxSelect: 1 },
     { name: "status", type: "text" },
     { name: "error_message", type: "text" },
+    { name: "topic_id", type: "text" },
   ]);
 
   await upsertCollection("blocks", [
@@ -108,6 +116,7 @@ export async function ensureCollections(): Promise<void> {
   await upsertCollection("cards", [
     { name: "user_id", type: "text" },
     { name: "document_id", type: "text" },
+    { name: "topic_id", type: "text" },
     { name: "block_id", type: "text" },
     { name: "question", type: "text" },
     { name: "options", type: "json" },

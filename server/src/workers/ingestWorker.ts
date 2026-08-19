@@ -37,6 +37,7 @@ async function processDocument(documentId: string): Promise<void> {
         const cardRecord = await pb.collection("cards").create({
           user_id: doc.user_id,
           document_id: documentId,
+          topic_id: doc.topic_id || null,
           block_id: blockRecord.id,
           question: block.question,
           options: block.options,

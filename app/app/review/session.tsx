@@ -20,7 +20,7 @@ const RATINGS: { label: string; value: 1 | 2 | 3 | 4; color: string }[] = [
 ];
 
 export default function ReviewSession() {
-  const { documentId } = useLocalSearchParams<{ documentId?: string }>();
+  const { documentId, topicId } = useLocalSearchParams<{ documentId?: string; topicId?: string }>();
   const [cards, setCards] = useState<DueCard[] | null>(null);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -31,8 +31,8 @@ export default function ReviewSession() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.review.due(50, documentId).then((r) => setCards(r.cards)).catch(() => setCards([]));
-  }, [documentId]);
+    api.review.due(50, { documentId, topicId }).then((r) => setCards(r.cards)).catch(() => setCards([]));
+  }, [documentId, topicId]);
 
   if (!cards) {
     return (
@@ -92,7 +92,10 @@ export default function ReviewSession() {
           </View>
         </View>
 
-        <Text style={[typography.caption, { color: colors.primary, marginTop: 24 }]}>{card.document_title.toUpperCase()}</Text>
+        <Text style={[typography.caption, { color: colors.primary, marginTop: 24 }]}>
+          {card.topic_name ? `${card.topic_name.toUpperCase()} > ` : ""}
+          {card.document_title.toUpperCase()}
+        </Text>
 
         <View style={{ marginTop: 24 }}>
           {card.question_type && ["cloze", "free-text"].includes(card.question_type) ? (
