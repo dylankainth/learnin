@@ -8,7 +8,8 @@
     "dev:worker": "tsx watch src/workers/ingestWorker.ts",
     "build": "tsc -p .",
     "start": "node dist/index.js",
-    "start:worker": "node dist/workers/ingestWorker.js"
+    "start:worker": "node dist/workers/ingestWorker.js",
+    "migrate": "tsx migrate.ts"
   },
   "dependencies": {
     "bullmq": "^5.34.0",
