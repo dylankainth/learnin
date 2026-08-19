@@ -10,18 +10,18 @@ topicsRouter.get("/", async (req: AuthedRequest, res) => {
   await ensureSuperuserAuth();
   try {
     const topics = await pb.collection("topics").getFullList({
-      filter: `user_id = "${req.userId}"`,
+      filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
       sort: "-created_at",
     });
 
     const topicsWithCounts = await Promise.all(
       topics.map(async (topic) => {
         const documents = await pb.collection("documents").getFullList({
-          filter: `topic_id = "${topic.id}"`,
+          filter: pb.filter("topic_id = {:tid}", { tid: topic.id }),
         });
 
         const cards = await pb.collection("cards").getFullList({
-          filter: `topic_id = "${topic.id}"`,
+          filter: pb.filter("topic_id = {:tid}", { tid: topic.id }),
         });
 
         const dueCards = cards.filter((c) => new Date(c.due_at) <= new Date());
@@ -57,12 +57,12 @@ topicsRouter.get("/:id", async (req: AuthedRequest, res) => {
     }
 
     const documents = await pb.collection("documents").getFullList({
-      filter: `topic_id = "${id}"`,
+      filter: pb.filter("topic_id = {:tid}", { tid: id }),
       sort: "-created_at",
     });
 
     const cards = await pb.collection("cards").getFullList({
-      filter: `topic_id = "${id}"`,
+      filter: pb.filter("topic_id = {:tid}", { tid: id }),
     });
 
     const dueCards = cards.filter((c) => new Date(c.due_at) <= new Date());
