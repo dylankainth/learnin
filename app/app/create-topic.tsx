@@ -20,13 +20,19 @@ export default function CreateTopicScreen() {
     }
     setLoading(true);
     try {
+      console.log("Creating topic:", { name, description });
       const res = await api.topics.create(name, description || undefined);
-      // Use push with proper reset instead of replace
-      router.push(`/topic/${res.topic.id}`);
+      console.log("Topic created successfully:", res.topic.id);
       setLoading(false);
+      // Navigate after setting loading to false
+      setTimeout(() => {
+        router.push(`/topic/${res.topic.id}`);
+      }, 100);
     } catch (err) {
-      Alert.alert("Failed to create topic", err instanceof Error ? err.message : "");
+      console.error("Failed to create topic:", err);
       setLoading(false);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      Alert.alert("Failed to create topic", errorMsg);
     }
   }
 
