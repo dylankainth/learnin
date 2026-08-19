@@ -48,7 +48,7 @@ export default function SignupScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
             />
-            <TextField label="Password" placeholder="At least 8 characters" value={password} onChangeText={setPassword} secureTextEntry />
+            <TextField label="Password" placeholder="At least 8 characters" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
           </View>
 
           {error && <Text style={styles.error}>{error}</Text>}

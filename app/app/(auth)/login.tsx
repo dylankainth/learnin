@@ -44,7 +44,7 @@ export default function LoginScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
             />
-            <TextField label="Password" placeholder="Your password" value={password} onChangeText={setPassword} secureTextEntry />
+            <TextField label="Password" placeholder="Your password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
           </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
