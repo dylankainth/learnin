@@ -6,6 +6,7 @@ import { colors } from "@/theme/colors";
 import { typography, radii } from "@/theme/typography";
 import { BlobMascot } from "@/components/BlobMascot";
 import { ConfidenceRating } from "@/components/ConfidenceRating";
+import { QuestionRenderer } from "@/components/QuestionRenderer";
 import { api } from "@/lib/api";
 import type { DueCard } from "@/lib/types";
 
@@ -21,6 +22,7 @@ export default function ReviewSession() {
   const [cards, setCards] = useState<DueCard[] | null>(null);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [userText, setUserText] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +66,7 @@ export default function ReviewSession() {
       await api.review.submit(card.id, rating, confidence);
       setIndex((i) => i + 1);
       setSelected(null);
+      setUserText("");
       setRevealed(false);
       setConfidence(null);
     } finally {
@@ -84,38 +87,40 @@ export default function ReviewSession() {
         </View>
 
         <Text style={[typography.caption, { color: colors.primary, marginTop: 24 }]}>{card.document_title.toUpperCase()}</Text>
-        <Text style={[typography.h1, { marginTop: 8 }]}>{card.question}</Text>
 
-        <View style={{ marginTop: 24, gap: 12 }}>
-          {card.options ? (
-            card.options.map((opt) => {
-              const isSelected = selected === opt;
-              const showCorrect = revealed && opt === card.answer;
-              const showWrong = revealed && isSelected && opt !== card.answer;
-              return (
-                <Pressable
-                  key={opt}
-                  disabled={revealed}
-                  onPress={() => setSelected(opt)}
-                  style={[
-                    styles.option,
-                    isSelected && !revealed && { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-                    showCorrect && { borderColor: colors.success, backgroundColor: colors.tealLight },
-                    showWrong && { borderColor: colors.danger, backgroundColor: "#FDE4E8" },
-                  ]}
-                >
-                  <Text style={typography.body}>{opt}</Text>
-                </Pressable>
-              );
-            })
-          ) : revealed ? (
-            <View style={styles.answerBox}>
-              <Text style={typography.bodyMedium}>{card.answer}</Text>
-            </View>
+        <View style={{ marginTop: 24 }}>
+          {card.question_type && ["cloze", "free-text"].includes(card.question_type) ? (
+            <QuestionRenderer
+              type={card.question_type as any}
+              question={card.question}
+              answer={card.answer}
+              revealed={revealed}
+              userText={userText}
+              onTextChange={setUserText}
+            />
           ) : (
-            <Pressable style={styles.revealPrompt} onPress={() => setRevealed(true)}>
-              <Text style={[typography.bodyMedium, { color: colors.textMuted }]}>Tap to reveal the answer</Text>
-            </Pressable>
+            <>
+              <Text style={[typography.h1, { marginBottom: 16 }]}>{card.question}</Text>
+              {card.options && !revealed ? (
+                <QuestionRenderer
+                  type={(card.question_type as any) || "multiple-choice"}
+                  question={card.question}
+                  options={card.options}
+                  selectedOption={selected}
+                  answer={card.answer}
+                  revealed={revealed}
+                  onSelectOption={setSelected}
+                />
+              ) : !revealed ? (
+                <Pressable style={styles.revealPrompt} onPress={() => setRevealed(true)}>
+                  <Text style={[typography.bodyMedium, { color: colors.textMuted }]}>Tap to reveal the answer</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.answerBox}>
+                  <Text style={typography.bodyMedium}>{card.answer}</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
 

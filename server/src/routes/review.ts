@@ -36,6 +36,7 @@ reviewRouter.get("/due", async (req: AuthedRequest, res) => {
       explanation: c.explanation,
       due_at: c.due_at,
       document_title: titleById.get(c.document_id) ?? "",
+      question_type: c.question_type ?? "multiple-choice",
     })),
   });
 });

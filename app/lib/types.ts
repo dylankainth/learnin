@@ -31,6 +31,7 @@ export interface QuizBlockView {
   cardId?: string;
   dueAt?: string;
   reps?: number;
+  question_type?: "multiple-choice" | "free-text" | "cloze" | "true-false";
 }
 
 export type DocBlock = ExplainerBlock | QuizBlockView;
@@ -55,6 +56,7 @@ export interface DueCard {
   explanation: string;
   due_at: string;
   document_title: string;
+  question_type?: "multiple-choice" | "free-text" | "cloze" | "true-false";
 }
 
 export interface ReviewStats {
