@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable } from "react-native";
+import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable, Modal, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
 import { colors } from "@/theme/colors";
@@ -20,6 +20,10 @@ export default function HomeScreen() {
   const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
   const [retention, setRetention] = useState<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTopicName, setNewTopicName] = useState("");
+  const [newTopicDesc, setNewTopicDesc] = useState("");
+  const [creatingTopic, setCreatingTopic] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +52,25 @@ export default function HomeScreen() {
     setRefreshing(true);
     await load().catch(() => {});
     setRefreshing(false);
+  }
+
+  async function handleCreateTopic() {
+    if (!newTopicName.trim()) {
+      Alert.alert("Topic name required");
+      return;
+    }
+    setCreatingTopic(true);
+    try {
+      const res = await api.topics.create(newTopicName, newTopicDesc || undefined);
+      setNewTopicName("");
+      setNewTopicDesc("");
+      setShowCreateModal(false);
+      router.push(`/topic/${res.topic.id}`);
+    } catch (err) {
+      Alert.alert("Failed to create topic", err instanceof Error ? err.message : "");
+    } finally {
+      setCreatingTopic(false);
+    }
   }
 
   const dueNow = Number(stats?.due_now ?? 0);
@@ -110,7 +133,7 @@ export default function HomeScreen() {
 
             <View style={styles.sectionHeaderRow}>
               <Text style={typography.h2}>Your topics</Text>
-              <Pressable onPress={() => router.push("/upload")}>
+              <Pressable onPress={() => setShowCreateModal(true)}>
                 <Text style={[typography.bodyMedium, { color: colors.primary }]}>+ New</Text>
               </Pressable>
             </View>
@@ -136,6 +159,55 @@ export default function HomeScreen() {
           </View>
         }
       />
+
+      <Modal visible={showCreateModal} transparent animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <View style={styles.modalContent}>
+            <View style={{ gap: 16 }}>
+              <Text style={typography.h2}>Create new topic</Text>
+              <TextInput
+                placeholder="Topic name"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+                value={newTopicName}
+                onChangeText={setNewTopicName}
+                editable={!creatingTopic}
+              />
+              <TextInput
+                placeholder="Description (optional)"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, { height: 60 }]}
+                multiline
+                value={newTopicDesc}
+                onChangeText={setNewTopicDesc}
+                editable={!creatingTopic}
+              />
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Pressable
+                  style={[styles.modalButton, { backgroundColor: colors.surfaceMuted, flex: 1 }]}
+                  onPress={() => {
+                    setShowCreateModal(false);
+                    setNewTopicName("");
+                    setNewTopicDesc("");
+                  }}
+                  disabled={creatingTopic}
+                >
+                  <Text style={[typography.button, { color: colors.text }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, { backgroundColor: colors.primary, flex: 1 }]}
+                  onPress={handleCreateTopic}
+                  disabled={creatingTopic}
+                >
+                  <Text style={[typography.button, { color: "#fff" }]}>
+                    {creatingTopic ? "Creating…" : "Create"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -151,4 +223,26 @@ const styles = StyleSheet.create({
   },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 },
   empty: { paddingTop: 40, paddingHorizontal: 20 },
+  modalContent: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: 24,
+    justifyContent: "flex-end",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+  },
+  modalButton: {
+    borderRadius: radii.pill,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
 });
