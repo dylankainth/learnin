@@ -17,11 +17,22 @@ export default function TopicDetailScreen() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
+      console.log("Loading topic:", id);
       const res = await api.topics.get(id);
+      console.log("Topic loaded:", res.topic);
       setTopic(res.topic);
       setContents(res.contents);
-    } catch {
-      // Errors already handled by API
+    } catch (err) {
+      console.error("Failed to load topic:", err);
+      // For new topics, create a placeholder while content loads
+      setTopic({
+        id,
+        name: "Loading...",
+        created_at: new Date().toISOString(),
+        content_count: 0,
+        card_count: 0,
+        due_count: 0,
+      });
     }
   }, [id]);
 
