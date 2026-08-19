@@ -11,7 +11,7 @@ services:
       - "8090:8090"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pocketbase.rule=Host(`pocketbase.learnin.local`)"
+      - "traefik.http.routers.pocketbase.rule=Host(`db.learnin.projects.dylankainth.com`)"
       - "traefik.http.services.pocketbase.loadbalancer.server.port=8090"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
