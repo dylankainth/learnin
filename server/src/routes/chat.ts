@@ -39,7 +39,13 @@ chatRouter.post("/start", async (req: AuthedRequest, res) => {
     fields: "question,answer,explanation",
   });
 
-  const systemPrompt = buildSystemPrompt(doc.title, cards.items);
+  const cardsSummary = cards.items.map((c) => ({
+    question: c.question as string,
+    answer: c.answer as string,
+    explanation: c.explanation as string,
+  }));
+
+  const systemPrompt = buildSystemPrompt(doc.title, cardsSummary);
 
   res.json({
     sessionId: Math.random().toString(36).slice(2),
@@ -68,7 +74,13 @@ chatRouter.post("/message", async (req: AuthedRequest, res) => {
     fields: "question,answer,explanation",
   });
 
-  const systemPrompt = buildSystemPrompt(doc.title, cards.items);
+  const cardsSummary = cards.items.map((c) => ({
+    question: c.question as string,
+    answer: c.answer as string,
+    explanation: c.explanation as string,
+  }));
+
+  const systemPrompt = buildSystemPrompt(doc.title, cardsSummary);
 
   // Call OpenRouter LLM for Socratic response
   const response = await generateSocraticResponse(systemPrompt, userMessage, env.openRouterApiKey);
