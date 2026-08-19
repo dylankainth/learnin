@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { ensureSuperuserAuth, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
-import { schedule, type CardState, type Rating } from "../services/srs.js";
+import { schedule, type CardState, type Rating, type CardReview } from "../services/srs.js";
 
 export const reviewRouter = Router();
 reviewRouter.use(requireAuth);
@@ -86,7 +86,10 @@ reviewRouter.get("/stats", async (req: AuthedRequest, res) => {
   res.json({ due_now: String(dueNow), total_cards: String(cards.length), studied: String(studied), streak });
 });
 
-const submitSchema = z.object({ rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]) });
+const submitSchema = z.object({
+  rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  confidencePre: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional(),
+});
 
 reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
   const parsed = submitSchema.safeParse(req.body);
@@ -94,7 +97,7 @@ reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const rating = parsed.data.rating as Rating;
+  const { rating, confidencePre } = parsed.data;
 
   await ensureSuperuserAuth();
 
@@ -116,7 +119,8 @@ reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
     reps: card.reps,
     lapses: card.lapses,
   };
-  const next = schedule(state, rating);
+  const review: CardReview = { rating: rating as Rating, confidencePre };
+  const next = schedule(state, review);
 
   await pb.collection("cards").update(card.id, {
     ease_factor: next.easeFactor,
@@ -125,6 +129,7 @@ reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
     lapses: next.lapses,
     due_at: next.dueAt,
     last_reviewed_at: new Date(),
+    confidence_pre_rating: confidencePre ?? null,
   });
   await pb.collection("reviews").create({ card_id: card.id, user_id: req.userId, rating, reviewed_at: new Date() });
 

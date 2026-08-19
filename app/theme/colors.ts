@@ -9,6 +9,7 @@ export const colors = {
   // Brand
   primary: "#6C4FE0",
   primaryDark: "#5539C7",
+  primaryLight: "#EAE3FB",
   primarySoft: "#EAE3FB",
 
   // Text

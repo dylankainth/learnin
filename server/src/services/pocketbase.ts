@@ -119,6 +119,8 @@ export async function ensureCollections(): Promise<void> {
     { name: "lapses", type: "number" },
     { name: "due_at", type: "date" },
     { name: "last_reviewed_at", type: "date" },
+    { name: "confidence_pre_rating", type: "number" },
+    { name: "question_type", type: "text" },
   ]);
 
   await upsertCollection("reviews", [

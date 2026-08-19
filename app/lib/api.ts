@@ -54,10 +54,10 @@ export const api = {
     due: (limit = 20, documentId?: string) =>
       request<{ cards: DueCard[] }>(`/review/due?limit=${limit}${documentId ? `&documentId=${documentId}` : ""}`),
     stats: () => request<ReviewStats>("/review/stats"),
-    submit: (cardId: string, rating: 1 | 2 | 3 | 4) =>
+    submit: (cardId: string, rating: 1 | 2 | 3 | 4, confidence?: number) =>
       request<{ dueAt: string; intervalDays: number }>(`/review/${cardId}`, {
         method: "POST",
-        body: JSON.stringify({ rating }),
+        body: JSON.stringify({ rating, confidencePre: confidence }),
       }),
   },
   notifications: {

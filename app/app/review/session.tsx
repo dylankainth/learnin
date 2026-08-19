@@ -5,6 +5,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/theme/colors";
 import { typography, radii } from "@/theme/typography";
 import { BlobMascot } from "@/components/BlobMascot";
+import { ConfidenceRating } from "@/components/ConfidenceRating";
 import { api } from "@/lib/api";
 import type { DueCard } from "@/lib/types";
 
@@ -21,6 +22,7 @@ export default function ReviewSession() {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [confidence, setConfidence] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -59,10 +61,11 @@ export default function ReviewSession() {
   async function submitRating(rating: 1 | 2 | 3 | 4) {
     setSubmitting(true);
     try {
-      await api.review.submit(card.id, rating);
+      await api.review.submit(card.id, rating, confidence);
       setIndex((i) => i + 1);
       setSelected(null);
       setRevealed(false);
+      setConfidence(null);
     } finally {
       setSubmitting(false);
     }
@@ -129,6 +132,8 @@ export default function ReviewSession() {
             >
               <Text style={[typography.button, { color: "#fff" }]}>Check</Text>
             </Pressable>
+          ) : !confidence ? (
+            <ConfidenceRating value={confidence} onChange={setConfidence} />
           ) : (
             <View style={styles.ratingRow}>
               {RATINGS.map((r) => (
