@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { pool } from "../db/index.js";
+import { getOrCreateNotificationPrefs, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 
 export const notificationsRouter = Router();
@@ -14,10 +14,8 @@ notificationsRouter.post("/register", async (req: AuthedRequest, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  await pool.query("UPDATE notification_prefs SET expo_push_token = $1 WHERE user_id = $2", [
-    parsed.data.expoPushToken,
-    req.userId,
-  ]);
+  const prefs = await getOrCreateNotificationPrefs(req.userId!);
+  await pb.collection("notification_prefs").update(prefs.id, { expo_push_token: parsed.data.expoPushToken });
   res.status(204).send();
 });
 
@@ -28,11 +26,10 @@ const prefsSchema = z.object({
 });
 
 notificationsRouter.get("/prefs", async (req: AuthedRequest, res) => {
-  const { rows } = await pool.query(
-    "SELECT enabled, reminder_hour_local, timezone FROM notification_prefs WHERE user_id = $1",
-    [req.userId],
-  );
-  res.json({ prefs: rows[0] ?? null });
+  const prefs = await getOrCreateNotificationPrefs(req.userId!);
+  res.json({
+    prefs: { enabled: prefs.enabled, reminder_hour_local: prefs.reminder_hour_local, timezone: prefs.timezone },
+  });
 });
 
 notificationsRouter.patch("/prefs", async (req: AuthedRequest, res) => {
@@ -42,13 +39,13 @@ notificationsRouter.patch("/prefs", async (req: AuthedRequest, res) => {
     return;
   }
   const { enabled, reminderHourLocal, timezone } = parsed.data;
-  await pool.query(
-    `UPDATE notification_prefs SET
-       enabled = COALESCE($1, enabled),
-       reminder_hour_local = COALESCE($2, reminder_hour_local),
-       timezone = COALESCE($3, timezone)
-     WHERE user_id = $4`,
-    [enabled ?? null, reminderHourLocal ?? null, timezone ?? null, req.userId],
-  );
+  const prefs = await getOrCreateNotificationPrefs(req.userId!);
+
+  const patch: Record<string, unknown> = {};
+  if (enabled !== undefined) patch.enabled = enabled;
+  if (reminderHourLocal !== undefined) patch.reminder_hour_local = reminderHourLocal;
+  if (timezone !== undefined) patch.timezone = timezone;
+  await pb.collection("notification_prefs").update(prefs.id, patch);
+
   res.status(204).send();
 });

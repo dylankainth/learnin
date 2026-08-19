@@ -31,8 +31,7 @@
     ],
     "extra": {
       "apiUrl": "http://localhost:4000",
-      "supabaseUrl": "https://your-project-ref.supabase.co",
-      "supabaseAnonKey": "your-supabase-anon-key"
+      "pocketbaseUrl": "http://localhost:8090"
     }
   }
 }

@@ -1,21 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
-import { pool } from "../db/index.js";
+import { ensureSuperuserAuth, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 
 export const meRouter = Router();
 meRouter.use(requireAuth);
 
 meRouter.get("/", async (req: AuthedRequest, res) => {
-  const { rows } = await pool.query("SELECT id, name, goal, created_at FROM profiles WHERE id = $1", [
-    req.userId,
-  ]);
-  const profile = rows[0];
-  if (!profile) {
-    res.status(404).json({ error: "Profile not found" });
-    return;
-  }
-  res.json({ user: { ...profile, email: req.userEmail } });
+  await ensureSuperuserAuth();
+  const user = await pb.collection("users").getOne(req.userId!);
+  res.json({ user: { id: user.id, email: user.email, name: user.name, goal: user.goal ?? null } });
 });
 
 const updateSchema = z.object({
@@ -29,10 +23,11 @@ meRouter.patch("/", async (req: AuthedRequest, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+  await ensureSuperuserAuth();
   const { name, goal } = parsed.data;
-  await pool.query(
-    `UPDATE profiles SET name = COALESCE($1, name), goal = CASE WHEN $2::boolean THEN $3 ELSE goal END WHERE id = $4`,
-    [name ?? null, goal !== undefined, goal ?? null, req.userId],
-  );
+  const patch: Record<string, unknown> = {};
+  if (name !== undefined) patch.name = name;
+  if (goal !== undefined) patch.goal = goal;
+  await pb.collection("users").update(req.userId!, patch);
   res.status(204).send();
 });

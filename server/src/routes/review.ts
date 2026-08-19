@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { pool } from "../db/index.js";
+import { ensureSuperuserAuth, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { schedule, type CardState, type Rating } from "../services/srs.js";
 
@@ -8,51 +8,82 @@ export const reviewRouter = Router();
 reviewRouter.use(requireAuth);
 
 reviewRouter.get("/due", async (req: AuthedRequest, res) => {
+  await ensureSuperuserAuth();
+
   const limit = Math.min(Number(req.query.limit ?? 20), 50);
   const documentId = typeof req.query.documentId === "string" ? req.query.documentId : null;
-  const { rows } = await pool.query(
-    `SELECT ca.id, ca.question, ca.options, ca.answer, ca.explanation, ca.due_at, d.title AS document_title
-     FROM cards ca
-     JOIN documents d ON d.id = ca.document_id
-     WHERE ca.user_id = $1 AND ca.due_at <= now() AND ($3::uuid IS NULL OR ca.document_id = $3)
-     ORDER BY ca.due_at ASC
-     LIMIT $2`,
-    [req.userId, limit, documentId],
-  );
-  res.json({ cards: rows });
+
+  const filterExpr = documentId
+    ? "user_id = {:uid} && due_at <= {:now} && document_id = {:docId}"
+    : "user_id = {:uid} && due_at <= {:now}";
+  const { items: cards } = await pb.collection("cards").getList(1, limit, {
+    filter: pb.filter(filterExpr, { uid: req.userId, now: new Date(), docId: documentId }),
+    sort: "due_at",
+  });
+
+  const docs = await pb.collection("documents").getFullList({
+    filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+    fields: "id,title",
+  });
+  const titleById = new Map(docs.map((d) => [d.id, d.title]));
+
+  res.json({
+    cards: cards.map((c) => ({
+      id: c.id,
+      question: c.question,
+      options: c.options ?? null,
+      answer: c.answer,
+      explanation: c.explanation,
+      due_at: c.due_at,
+      document_title: titleById.get(c.document_id) ?? "",
+    })),
+  });
 });
 
 reviewRouter.get("/stats", async (req: AuthedRequest, res) => {
-  const { rows } = await pool.query(
-    `SELECT
-       COUNT(*) FILTER (WHERE due_at <= now()) AS due_now,
-       COUNT(*) AS total_cards,
-       COUNT(*) FILTER (WHERE reps > 0) AS studied
-     FROM cards WHERE user_id = $1`,
-    [req.userId],
-  );
-  const streakResult = await pool.query(
-    `SELECT DISTINCT date_trunc('day', reviewed_at) AS day
-     FROM reviews WHERE user_id = $1
-     ORDER BY day DESC`,
-    [req.userId],
-  );
+  await ensureSuperuserAuth();
+
+  const [cards, reviews] = await Promise.all([
+    pb.collection("cards").getFullList({
+      filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+      fields: "id,due_at,reps",
+    }),
+    pb.collection("reviews").getFullList({
+      filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+      fields: "reviewed_at",
+      sort: "-reviewed_at",
+    }),
+  ]);
+
+  const now = Date.now();
+  const dueNow = cards.filter((c) => c.due_at && new Date(c.due_at).getTime() <= now).length;
+  const studied = cards.filter((c) => c.reps > 0).length;
+
+  const days = Array.from(
+    new Set(
+      reviews.map((r) => {
+        const d = new Date(r.reviewed_at);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      }),
+    ),
+  ).sort((a, b) => b - a);
+
   let streak = 0;
   let cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
-  for (const row of streakResult.rows) {
-    const day = new Date(row.day);
-    const diffDays = Math.round((cursor.getTime() - day.getTime()) / 86_400_000);
+  for (const dayTime of days) {
+    const diffDays = Math.round((cursor.getTime() - dayTime) / 86_400_000);
     if (diffDays === streak) {
       streak += 1;
     } else if (diffDays === streak + 1 && streak === 0) {
-      // allow "today not yet reviewed but yesterday was" to still count as an active streak
       continue;
     } else {
       break;
     }
   }
-  res.json({ ...rows[0], streak });
+
+  res.json({ due_now: String(dueNow), total_cards: String(cards.length), studied: String(studied), streak });
 });
 
 const submitSchema = z.object({ rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]) });
@@ -65,12 +96,16 @@ reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
   }
   const rating = parsed.data.rating as Rating;
 
-  const cardResult = await pool.query(
-    "SELECT id, ease_factor, interval_days, reps, lapses FROM cards WHERE id = $1 AND user_id = $2",
-    [req.params.cardId, req.userId],
-  );
-  const card = cardResult.rows[0];
-  if (!card) {
+  await ensureSuperuserAuth();
+
+  let card;
+  try {
+    card = await pb.collection("cards").getOne(req.params.cardId);
+  } catch {
+    res.status(404).json({ error: "Card not found" });
+    return;
+  }
+  if (card.user_id !== req.userId) {
     res.status(404).json({ error: "Card not found" });
     return;
   }
@@ -83,16 +118,15 @@ reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
   };
   const next = schedule(state, rating);
 
-  await pool.query(
-    `UPDATE cards SET ease_factor = $1, interval_days = $2, reps = $3, lapses = $4, due_at = $5, last_reviewed_at = now()
-     WHERE id = $6`,
-    [next.easeFactor, next.intervalDays, next.reps, next.lapses, next.dueAt, card.id],
-  );
-  await pool.query("INSERT INTO reviews (card_id, user_id, rating) VALUES ($1, $2, $3)", [
-    card.id,
-    req.userId,
-    rating,
-  ]);
+  await pb.collection("cards").update(card.id, {
+    ease_factor: next.easeFactor,
+    interval_days: next.intervalDays,
+    reps: next.reps,
+    lapses: next.lapses,
+    due_at: next.dueAt,
+    last_reviewed_at: new Date(),
+  });
+  await pb.collection("reviews").create({ card_id: card.id, user_id: req.userId, rating, reviewed_at: new Date() });
 
   res.json({ dueAt: next.dueAt, intervalDays: next.intervalDays });
 });

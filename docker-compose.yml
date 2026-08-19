@@ -1,4 +1,20 @@
 services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    restart: unless-stopped
+    environment:
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@learnin.local}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-changeme-please}
+    volumes:
+      - pb_data:/pb_data
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -13,9 +29,9 @@ services:
       PORT: 4000
     ports:
       - "4000:4000"
-    volumes:
-      - uploads:/app/uploads
     depends_on:
+      pocketbase:
+        condition: service_healthy
       redis:
         condition: service_started
 
@@ -24,9 +40,9 @@ services:
     restart: unless-stopped
     command: ["node", "dist/workers/ingestWorker.js"]
     env_file: ./server/.env
-    volumes:
-      - uploads:/app/uploads
     depends_on:
+      pocketbase:
+        condition: service_healthy
       redis:
         condition: service_started
 
@@ -40,5 +56,5 @@ services:
   #     ASR_ENGINE: faster_whisper
 
 volumes:
+  pb_data:
   redis_data:
-  uploads:

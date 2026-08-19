@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { mkdir } from "fs/promises";
-import { ensureSchema } from "./db/index.js";
+import { ensureCollections } from "./services/pocketbase.js";
 import { env } from "./env.js";
 import { meRouter } from "./routes/me.js";
 import { documentsRouter } from "./routes/documents.js";
@@ -10,8 +9,7 @@ import { notificationsRouter } from "./routes/notifications.js";
 import { startReminderCron } from "./services/push.js";
 
 async function main() {
-  await mkdir(env.uploadDir, { recursive: true });
-  await ensureSchema();
+  await ensureCollections();
 
   const app = express();
   app.use(cors());
