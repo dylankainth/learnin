@@ -12,9 +12,10 @@ async function main() {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  app.use(express.static('public'));
 
-  // Root endpoint
-  app.get("/", (_req, res) => res.json({ 
+  // Root endpoint (fallback if no static file matches)
+  app.get("/", (_req, res) => res.json({
     app: "learnin",
     status: "running",
     version: "0.1.0"

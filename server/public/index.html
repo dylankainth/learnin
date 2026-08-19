@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learnin - Learn Smarter, Remember Longer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #C7B9F2 0%, #FFFFFF 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      position: relative;
+      text-align: center;
+      z-index: 1;
+      max-width: 600px;
+    }
+
+    .blob {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: rgba(108, 79, 224, 0.15);
+      border-radius: 45% 55% 60% 40% / 55% 45% 40% 60%;
+      animation: blob 6s ease-in-out infinite;
+      top: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 0;
+    }
+
+    @keyframes blob {
+      0%, 100% {
+        border-radius: 45% 55% 60% 40% / 55% 45% 40% 60%;
+        transform: translateX(-50%) scale(1);
+      }
+      25% {
+        border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+        transform: translateX(-50%) scale(1.05);
+      }
+      50% {
+        border-radius: 50% 50% 40% 60% / 60% 40% 50% 50%;
+        transform: translateX(-50%) scale(1.02);
+      }
+      75% {
+        border-radius: 55% 45% 55% 45% / 45% 55% 45% 55%;
+        transform: translateX(-50%) scale(1.03);
+      }
+    }
+
+    .beta-badge {
+      display: inline-block;
+      background: rgba(108, 79, 224, 0.2);
+      color: #6C4FE0;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      border: 1px solid rgba(108, 79, 224, 0.3);
+    }
+
+    h1 {
+      font-size: 56px;
+      font-weight: 700;
+      color: #241E38;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 20px;
+      color: #6C4FE0;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .description {
+      font-size: 16px;
+      color: #8D86A6;
+      line-height: 1.6;
+      margin-bottom: 48px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    .feature {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      padding: 24px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(108, 79, 224, 0.2);
+    }
+
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .feature-title {
+      font-size: 13px;
+      color: #241E38;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .download-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #6C4FE0 0%, #A855F7 100%);
+      color: white;
+      padding: 16px 48px;
+      border-radius: 32px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 24px rgba(108, 79, 224, 0.3);
+      border: none;
+      cursor: pointer;
+    }
+
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(108, 79, 224, 0.4);
+    }
+
+    .download-btn:active {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 40px;
+      }
+
+      .subtitle {
+        font-size: 18px;
+      }
+
+      .description {
+        font-size: 14px;
+        margin-bottom: 36px;
+      }
+
+      .features {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 36px;
+      }
+
+      .feature {
+        padding: 20px 12px;
+      }
+
+      .download-btn {
+        padding: 14px 40px;
+        font-size: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="blob"></div>
+    <div class="beta-badge">Available Now</div>
+    <h1>Learnin</h1>
+    <p class="subtitle">Learn Smarter, Remember Longer</p>
+    <p class="description">Turn your lecture PDFs and recordings into interactive learning experiences. Study smarter with spaced-repetition and smart reminders.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">📚</div>
+        <div class="feature-title">Learn from PDFs</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎯</div>
+        <div class="feature-title">Smart Quizzes</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🧠</div>
+        <div class="feature-title">Spaced Repetition</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⏰</div>
+        <div class="feature-title">Smart Reminders</div>
+      </div>
+    </div>
+    <a href="/download/app.apk" class="download-btn">Download Now</a>
+  </div>
+</body>
+</html>
