@@ -5,47 +5,49 @@ inline quizzes, then commit it to memory with spaced-repetition reviews and remi
 
 ## Structure
 
-- `server/` — Express API + BullMQ ingestion worker (Redis + Supabase Postgres), deployed via Docker Compose.
+- `server/` — Express API + BullMQ ingestion worker (Redis + PocketBase), deployed via Docker Compose.
 - `app/` — Expo (React Native) Android app, expo-router based.
 
-## Setting up Supabase (accounts + database)
+## Accounts + database: PocketBase
 
-Accounts and the Postgres database both live on [Supabase](https://supabase.com) —
-create a free project, then:
+Everything backend-of-the-backend — accounts, the app's database, and lecture file
+storage — lives in [PocketBase](https://pocketbase.io), self-hosted as the
+`pocketbase` service in `docker-compose.yml`. It's a single Go binary with SQLite
+under the hood, so there's nothing else to provision.
 
-1. **Project Settings → API** — copy the Project URL and `anon` `public` key into
-   `app/app.json`'s `extra.supabaseUrl` / `extra.supabaseAnonKey` (these are safe to
-   ship in the client; access is scoped by the JWT a user gets after logging in).
-2. **Project Settings → API → JWT Settings** — copy the JWT Secret into the server's
-   `SUPABASE_JWT_SECRET` (used to verify tokens the app sends — see below).
-3. **Project Settings → Database → Connection string** — copy the *Session pooler*
-   (or direct) connection string into the server's `DATABASE_URL`. Don't use the
-   *Transaction pooler* string; this app holds a persistent `pg.Pool`, which
-   transaction-mode pgbouncer doesn't support well.
-4. **Authentication → Providers → Email** — decide whether to require email
-   confirmation (on by default). The app handles both: if confirmation is required,
-   signup shows a "check your inbox" screen instead of dropping straight into the app.
+1. `docker compose up` creates the PocketBase superuser automatically from
+   `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` in `server/.env` on first boot.
+2. The Express server authenticates as that same superuser (same two env vars) and,
+   on every boot, idempotently creates/extends the collections it needs (`documents`,
+   `blocks`, `cards`, `reviews`, `notification_prefs`, plus `name`/`goal` fields added
+   to PocketBase's built-in `users` collection) — no migration step to run by hand.
+3. All of the app's own authorization (`user_id` filtering, etc.) happens in the
+   Express route code, the same way it did with a plain Postgres pool before —
+   PocketBase's collection API rules are left at their default (superuser-only),
+   since only the backend talks to PocketBase directly.
+4. The app talks to PocketBase **directly** for auth (signup/login/password reset,
+   via the `pocketbase` JS SDK) — the Express backend only verifies the resulting
+   token (`pb.collection('users').authRefresh()`) on each request. Uploaded lecture
+   files are stored as a native PocketBase file field, not on local disk.
+5. Visit `http://<your-host>:8090/_/` for the PocketBase admin UI (inspect data,
+   tweak fields by hand, etc.) — log in with your `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD`.
 
-The server creates its own tables (`profiles`, `documents`, `blocks`, `cards`,
-`reviews`, `notification_prefs`) on boot, keyed off Supabase's built-in `auth.users` —
-you don't need to run any SQL by hand. Password reset, email confirmation, and token
-refresh are all handled by Supabase Auth; the app talks to it directly via
-`@supabase/supabase-js`, and the Express backend only verifies the resulting JWT.
+Point the app at your PocketBase instance via `extra.pocketbaseUrl` in `app/app.json`.
 
 ## Running the backend
 
 ```bash
 cd server
-cp .env.example .env   # fill in DATABASE_URL, SUPABASE_JWT_SECRET, OPENROUTER_API_KEY, etc.
+cp .env.example .env   # fill in PB_ADMIN_EMAIL/PB_ADMIN_PASSWORD, OPENROUTER_API_KEY, etc.
 cd ..
 docker compose up --build
 ```
 
-This starts Redis, the API (`:4000`), and the ingestion worker (no local Postgres —
-that's Supabase now). The worker picks up uploaded lectures, extracts text (PDF via
-`pdf-parse`, video via a self-hosted Whisper-compatible server — see `WHISPER_API_URL`
-in `.env.example`), and calls an LLM via [OpenRouter](https://openrouter.ai) to
-generate the explainer + quiz document.
+This starts PocketBase (`:8090`), Redis, the API (`:4000`), and the ingestion worker.
+The worker picks up uploaded lectures, extracts text (PDF via `pdf-parse`, video via a
+self-hosted Whisper-compatible server — see `WHISPER_API_URL` in `.env.example`),
+and calls an LLM via [OpenRouter](https://openrouter.ai) to generate the explainer +
+quiz document.
 
 Video transcription is optional: leave `WHISPER_API_URL` unset to support PDF-only
 uploads, or uncomment the `whisper` service in `docker-compose.yml` to self-host one.
@@ -60,8 +62,8 @@ npx expo start --android
 
 Point it at your backend by setting `extra.apiUrl` in `app/app.json` (defaults to
 `http://localhost:4000`, which only works from an Android emulator via `10.0.2.2` —
-set it to your VPS's address for a real device), and `extra.supabaseUrl` /
-`extra.supabaseAnonKey` as described above.
+set it to your VPS's address for a real device), and `extra.pocketbaseUrl` as
+described above.
 
 ## Design
 

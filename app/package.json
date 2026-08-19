@@ -13,7 +13,6 @@
   "dependencies": {
     "@expo-google-fonts/quicksand": "^0.4.1",
     "@react-native-async-storage/async-storage": "2.1.2",
-    "@supabase/supabase-js": "^2.49.4",
     "aes-js": "^3.1.2",
     "expo": "~53.0.0",
     "expo-asset": "~11.1.7",
@@ -27,13 +26,13 @@
     "expo-secure-store": "~14.2.4",
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
+    "pocketbase": "^0.28.0",
     "react": "19.0.0",
     "react-native": "0.79.6",
     "react-native-get-random-values": "~1.11.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-svg": "15.11.2",
-    "react-native-url-polyfill": "^2.0.0"
+    "react-native-svg": "15.11.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
