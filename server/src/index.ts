@@ -22,6 +22,15 @@ async function main() {
   }));
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
+
+  app.get("/download/app.apk", (_req, res) => {
+    res.download("public/downloads/app.apk", "learnin.apk", (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).json({ error: "APK not available yet" });
+      }
+    });
+  });
+
   app.use("/me", meRouter);
   app.use("/documents", documentsRouter);
   app.use("/review", reviewRouter);
