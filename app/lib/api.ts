@@ -100,10 +100,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ documentId }),
       }),
-    message: (userMessage: string, documentId: string) =>
+    message: (userMessage: string, documentId: string, history?: { role: "user" | "assistant"; content: string }[]) =>
       request<{ response: string }>("/chat/message", {
         method: "POST",
-        body: JSON.stringify({ userMessage, documentId }),
+        body: JSON.stringify({ userMessage, documentId, history }),
       }),
   },
 };

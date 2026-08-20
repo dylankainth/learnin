@@ -43,6 +43,10 @@ async function processDocument(documentId: string): Promise<void> {
           options: block.options,
           answer: block.answer,
           explanation: block.explanation,
+          ease_factor: 2.5,
+          interval_days: 0,
+          reps: 0,
+          lapses: 0,
         });
         createdCardIds.push(cardRecord.id);
       }

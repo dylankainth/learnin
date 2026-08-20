@@ -28,6 +28,7 @@ export default function ReviewSession() {
   const [revealed, setRevealed] = useState(false);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [showElaboration, setShowElaboration] = useState(false);
+  const [pendingRating, setPendingRating] = useState<1 | 2 | 3 | 4 | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function ReviewSession() {
       setRevealed(false);
       setConfidence(null);
       setShowElaboration(false);
+      setPendingRating(null);
     } finally {
       setSubmitting(false);
     }
@@ -149,7 +151,7 @@ export default function ReviewSession() {
           ) : !confidence ? (
             <ConfidenceRating value={confidence} onChange={setConfidence} />
           ) : showElaboration && card.elaboration_prompt ? (
-            <ElaborationPrompt prompt={card.elaboration_prompt} onSubmit={() => submitRating(3)} />
+            <ElaborationPrompt prompt={card.elaboration_prompt} onSubmit={() => submitRating(pendingRating ?? 3)} />
           ) : (
             <View style={styles.ratingRow}>
               {RATINGS.map((r) => (
@@ -158,6 +160,7 @@ export default function ReviewSession() {
                   disabled={submitting}
                   onPress={() => {
                     if (card.elaboration_prompt) {
+                      setPendingRating(r.value);
                       setShowElaboration(true);
                     } else {
                       submitRating(r.value);

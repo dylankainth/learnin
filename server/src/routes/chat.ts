@@ -55,15 +55,24 @@ chatRouter.post("/start", async (req: AuthedRequest, res) => {
 });
 
 chatRouter.post("/message", async (req: AuthedRequest, res) => {
-  const { userMessage, documentId } = req.body;
+  const { userMessage, documentId, history } = req.body as {
+    userMessage?: string;
+    documentId?: string;
+    history?: ChatMessage[];
+  };
   if (!userMessage || !documentId) {
     res.status(400).json({ error: "userMessage and documentId required" });
     return;
   }
 
-  // Get document context
   await ensureSuperuserAuth();
-  const doc = await pb.collection("documents").getOne(documentId);
+  let doc;
+  try {
+    doc = await pb.collection("documents").getOne(documentId);
+  } catch {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
   if (doc.user_id !== req.userId) {
     res.status(403).json({ error: "Unauthorized" });
     return;
@@ -81,9 +90,8 @@ chatRouter.post("/message", async (req: AuthedRequest, res) => {
   }));
 
   const systemPrompt = buildSystemPrompt(doc.title, cardsSummary);
-
-  // Call OpenRouter LLM for Socratic response
-  const response = await generateSocraticResponse(systemPrompt, userMessage, env.openRouterApiKey);
+  const priorHistory: ChatMessage[] = Array.isArray(history) ? history.slice(-20) : [];
+  const response = await generateSocraticResponse(systemPrompt, priorHistory, userMessage, env.openRouterApiKey);
 
   res.json({ response });
 });
@@ -114,7 +122,12 @@ Guidelines:
 Respond naturally and conversationally, not as bullet points.`;
 }
 
-async function generateSocraticResponse(systemPrompt: string, userMessage: string, apiKey?: string): Promise<string> {
+async function generateSocraticResponse(
+  systemPrompt: string,
+  history: ChatMessage[],
+  userMessage: string,
+  apiKey?: string,
+): Promise<string> {
   if (!apiKey) {
     return "Socratic chatbot requires OPENROUTER_API_KEY to be configured.";
   }
@@ -124,13 +137,14 @@ async function generateSocraticResponse(systemPrompt: string, userMessage: strin
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://github.com/dylankainth/learnin",
-      "X-Title": "Learnin",
+      "HTTP-Referer": env.openRouterSiteUrl,
+      "X-Title": env.openRouterAppName,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: env.openRouterModel,
       messages: [
         { role: "system", content: systemPrompt },
+        ...history,
         { role: "user", content: userMessage },
       ],
       temperature: 0.7,

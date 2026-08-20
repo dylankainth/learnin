@@ -180,13 +180,13 @@ documentsRouter.delete("/:id", async (req: AuthedRequest, res) => {
     )
   ).flat();
 
-  await Promise.all(reviews.map((r) => pb.collection("reviews").delete(r.id)));
-  await Promise.all(cards.map((c) => pb.collection("cards").delete(c.id)));
+  await Promise.all(reviews.map((r) => pb.collection("reviews").delete(r.id).catch(() => {})));
+  await Promise.all(cards.map((c) => pb.collection("cards").delete(c.id).catch(() => {})));
   const blocks = await pb.collection("blocks").getFullList({
     filter: pb.filter("document_id = {:id}", { id: doc.id }),
     fields: "id",
   });
-  await Promise.all(blocks.map((b) => pb.collection("blocks").delete(b.id)));
+  await Promise.all(blocks.map((b) => pb.collection("blocks").delete(b.id).catch(() => {})));
   await pb.collection("documents").delete(doc.id);
 
   res.status(204).send();

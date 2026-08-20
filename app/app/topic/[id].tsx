@@ -17,9 +17,7 @@ export default function TopicDetailScreen() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      console.log("Loading topic:", id);
       const res = await api.topics.get(id);
-      console.log("Topic loaded:", res.topic);
       setTopic(res.topic);
       setContents(res.contents);
     } catch (err) {

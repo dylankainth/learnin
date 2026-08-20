@@ -100,10 +100,13 @@ reviewRouter.get("/stats", async (req: AuthedRequest, res) => {
   cursor.setHours(0, 0, 0, 0);
   for (const dayTime of days) {
     const diffDays = Math.round((cursor.getTime() - dayTime) / 86_400_000);
-    if (diffDays === streak) {
+    if (diffDays === 0) {
       streak += 1;
-    } else if (diffDays === streak + 1 && streak === 0) {
-      continue;
+      cursor = new Date(dayTime - 86_400_000);
+    } else if (diffDays === 1 && streak === 0) {
+      // No review today, but reviewed yesterday — start streak from yesterday
+      streak += 1;
+      cursor = new Date(dayTime - 86_400_000);
     } else {
       break;
     }

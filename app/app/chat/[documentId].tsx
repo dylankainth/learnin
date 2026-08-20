@@ -48,7 +48,7 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
-      const res = await api.chat.message(userMessage, documentId);
+      const res = await api.chat.message(userMessage, documentId, messages);
       setMessages((prev) => [...prev, { role: "assistant", content: res.response }]);
     } catch (err) {
       setMessages((prev) => [
