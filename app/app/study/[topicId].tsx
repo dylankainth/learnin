@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/theme/colors";
-import { typography, radii } from "@/theme/typography";
+import { typography, radii, fonts } from "@/theme/typography";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { InlineQuiz } from "@/components/InlineQuiz";
 import { api } from "@/lib/api";
@@ -51,7 +51,7 @@ export default function TopicStudyScreen() {
         };
       });
     } catch {
-      // silently ignore — not critical
+      // not critical
     }
   }
 
@@ -68,7 +68,7 @@ export default function TopicStudyScreen() {
   if (!detail || detail.blocks.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <Header title="Study" onClose={() => router.back()} />
+        <Header title="Study" topicId={topicId ?? ""} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 }}>
           {detail?.processingCount ? (
             <>
@@ -90,49 +90,48 @@ export default function TopicStudyScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Header title={detail.topic.name} onClose={() => router.back()} />
+      <Header title={detail.topic.name} topicId={topicId ?? ""} />
 
-      <FlatList
-        data={detail.blocks}
-        keyExtractor={(b) => b.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => <BlockItem block={item} onLock={() => onLockBlock(item.id)} />}
-        ItemSeparatorComponent={() => <View style={{ height: 20 }} />}
-        ListFooterComponent={
-          detail.processingCount > 0 ? (
-            <View style={styles.processingFooter}>
-              <ActivityIndicator color={colors.primary} size="small" />
-              <Text style={[typography.caption, { color: colors.textMuted, marginLeft: 8 }]}>
-                {detail.processingCount} more lecture{detail.processingCount !== 1 ? "s" : ""} still processing…
-              </Text>
-            </View>
-          ) : null
-        }
-      />
+      <ScrollView
+        contentContainerStyle={styles.page}
+        showsVerticalScrollIndicator={false}
+      >
+        {detail.blocks.map((block, index) =>
+          block.type === "explainer" ? (
+            <ExplainerItem
+              key={block.id}
+              block={block}
+              onLock={() => onLockBlock(block.id)}
+            />
+          ) : (
+            <QuizItem key={block.id} block={block} />
+          ),
+        )}
+
+        {detail.processingCount > 0 && (
+          <View style={styles.processingFooter}>
+            <ActivityIndicator color={colors.primary} size="small" />
+            <Text style={[typography.caption, { color: colors.textMuted, marginLeft: 8 }]}>
+              {detail.processingCount} more lecture{detail.processingCount !== 1 ? "s" : ""} processing…
+            </Text>
+          </View>
+        )}
+
+        <View style={{ height: 60 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function BlockItem({ block, onLock }: { block: TopicBlock; onLock: () => void }) {
-  if (block.type === "explainer") {
-    return (
-      <View>
-        <InlineMarkdown text={block.markdown ?? ""} />
-        {!block.locked && (
-          <Pressable style={styles.markRead} onPress={onLock}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>✓ Mark as read</Text>
-          </Pressable>
-        )}
-        {block.locked && (
-          <View style={styles.lockedBadge}>
-            <Text style={[typography.caption, { color: colors.success }]}>✓ Read</Text>
-          </View>
-        )}
-      </View>
-    );
-  }
+function ExplainerItem({ block, onLock }: { block: TopicBlock; onLock: () => void }) {
+  return (
+    <View style={styles.section}>
+      <InlineMarkdown text={block.markdown ?? ""} />
+    </View>
+  );
+}
 
-  // Quiz block — cast to what InlineQuiz expects
+function QuizItem({ block }: { block: TopicBlock }) {
   const quizBlock = {
     id: block.id,
     type: "quiz" as const,
@@ -144,43 +143,66 @@ function BlockItem({ block, onLock }: { block: TopicBlock; onLock: () => void })
     dueAt: block.dueAt,
     reps: block.reps,
   };
-  return <InlineQuiz block={quizBlock} />;
+  return (
+    <View style={styles.quizWrap}>
+      <View style={styles.quizRule} />
+      <Text style={styles.quizLabel}>Check your understanding</Text>
+      <InlineQuiz block={quizBlock} />
+      <View style={styles.quizRule} />
+    </View>
+  );
 }
 
-function Header({ title, onClose }: { title: string; onClose: () => void }) {
+function Header({ title, topicId }: { title: string; topicId: string }) {
   return (
     <View style={styles.header}>
-      <Pressable onPress={onClose} hitSlop={12}>
-        <Text style={[typography.bodyMedium, { color: colors.textMuted }]}>Close</Text>
+      <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Text style={[typography.bodyMedium, { color: colors.primary }]}>← Back</Text>
       </Pressable>
-      <Text style={[typography.h2, { flex: 1, marginLeft: 14 }]} numberOfLines={1}>
+      <Text style={[typography.caption, { flex: 1, textAlign: "center", color: colors.textMuted }]} numberOfLines={1}>
         {title}
       </Text>
+      <View style={{ width: 48 }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  list: { paddingHorizontal: 20, paddingBottom: 80 },
-  markRead: {
-    marginTop: 8,
-    alignSelf: "flex-start",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.pill,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  lockedBadge: {
-    marginTop: 8,
-    alignSelf: "flex-start",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+  page: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  section: {
+    marginBottom: 8,
+  },
+  quizWrap: {
+    marginVertical: 8,
+  },
+  quizRule: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 20,
+  },
+  quizLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    marginBottom: 12,
   },
   processingFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 24,
+    paddingVertical: 32,
   },
 });

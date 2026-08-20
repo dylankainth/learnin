@@ -14,8 +14,7 @@ export function InlineQuiz({ block }: { block: QuizBlockView }) {
 
   return (
     <View style={styles.card}>
-      <Text style={[typography.caption, { color: colors.primary }]}>QUICK CHECK</Text>
-      <Text style={[typography.h2, { marginTop: 6 }]}>{block.question}</Text>
+      <Text style={[typography.h2, { marginBottom: 2 }]}>{block.question}</Text>
 
       {block.options ? (
         <View style={{ gap: 10, marginTop: 14 }}>
@@ -77,9 +76,11 @@ export function InlineQuiz({ block }: { block: QuizBlockView }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
     padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   option: {
     borderWidth: 1.5,
