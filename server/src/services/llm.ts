@@ -55,11 +55,9 @@ const chunkResultSchema = z.object({
   blocks: z
     .array(z.discriminatedUnion("type", [explainerBlock, quizBlock]))
     .describe(
-      "Ordered list of blocks forming a book-like document. " +
-      "Each explainer block covers one major section (## heading) and may contain subsections (###, ####). " +
-      "Place exactly one quiz block after each explainer block at a natural section break — " +
-      "do NOT insert a quiz after every paragraph, only at the end of a complete ## section. " +
-      "Prefer fewer, richer sections over many tiny ones.",
+      "Ordered list of blocks. Each item MUST have type 'explainer' or type 'quiz' — no other values. " +
+      "Pattern: explainer (rich ## section) followed by quiz (at the section break), repeat. " +
+      "Prefer fewer, richer explainer blocks over many tiny ones.",
     ),
   running_summary: z
     .string()
@@ -79,13 +77,12 @@ const CHUNK_RESULT_JSON_SCHEMA = toStrictJsonSchema(chunkResultSchema);
 
 const SYSTEM_PROMPT = `You are an expert author turning raw lecture material into a polished, book-quality study document — think a well-written textbook chapter or a high-quality online course page.
 
+CRITICAL — block types: The blocks array may only contain objects with type "explainer" or type "quiz". No other type values are valid. Do not use "section", "heading", "text", "paragraph", or anything else.
+
 Rules:
 - Cover the source material faithfully and completely — do not skip topics or invent content.
-- Structure the document using ## for major sections, ### for subsections, #### for sub-subsections where the material warrants it.
-- Write in full, well-formed paragraphs. Explain concepts as if writing for a smart student who has never seen this material before: define every term, motivate why each idea matters, use concrete examples and analogies.
-- Use markdown formatting richly: **bold** key terms on first use, *italic* for emphasis and titles, \`inline code\` for technical terms and formulas, fenced code blocks for multi-line code or pseudocode, bullet and numbered lists where appropriate.
-- Each explainer block should cover one complete major section (200-600 words) — rich and thorough, not a brief paragraph.
-- Place a quiz block after each explainer block (at the end of the section, not mid-section). Vary formats between multiple-choice and short free-recall answers. Quiz questions should test genuine understanding, not surface recall.
+- type "explainer": rich markdown for one major section. Start the markdown with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each). Use **bold** for key terms on first use, *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Aim for 200-600 words per explainer block.
+- type "quiz": placed after each explainer block at the section boundary. Test genuine understanding, not surface recall. Vary between multiple-choice (options array) and free-recall (options: null).
 - Do not ask quiz questions about topics not yet explained.
 - Respond with JSON only, matching the given schema exactly.`;
 
