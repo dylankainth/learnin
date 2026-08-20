@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/quicksand": "^0.4.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "aes-js": "^3.1.2",

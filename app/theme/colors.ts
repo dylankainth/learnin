@@ -1,37 +1,37 @@
 export const colors = {
-  // Backgrounds
-  bg: "#F5F2FC",
-  bgGradientTop: "#C7B9F2",
-  bgGradientBottom: "#FFFFFF",
+  // Backgrounds — warm ivory, easier on eyes during long sessions
+  bg: "#F9F8F5",
+  bgGradientTop: "#E6E1F8",
+  bgGradientBottom: "#F9F8F5",
   surface: "#FFFFFF",
-  surfaceMuted: "#F0ECFA",
+  surfaceMuted: "#F3F1EC",
 
-  // Brand
-  primary: "#6C4FE0",
-  primaryDark: "#5539C7",
-  primaryLight: "#EAE3FB",
-  primarySoft: "#EAE3FB",
+  // Brand — deep indigo: confident, focused, academic
+  primary: "#4F46E5",
+  primaryDark: "#3730A3",
+  primaryLight: "#EEF2FF",
+  primarySoft: "#EEF2FF",
 
-  // Text
-  text: "#241E38",
-  textMuted: "#8D86A6",
+  // Text — warm stone tones, not cold gray
+  text: "#1C1917",
+  textMuted: "#78716C",
   textOnPrimary: "#FFFFFF",
 
-  // Accents (mirrors the habit-card palette: pink / orange / teal / blue)
-  pink: "#FF6FA0",
-  pinkLight: "#FFE1EC",
-  orange: "#FFA53D",
-  orangeLight: "#FFEBD3",
-  teal: "#2FC7B4",
-  tealLight: "#D8F7F1",
-  blue: "#6C8EF5",
-  blueLight: "#E4EAFD",
-  yellow: "#FFC94A",
-  yellowLight: "#FFF3D6",
+  // Accents — desaturated, considered
+  pink: "#DB2777",
+  pinkLight: "#FCE7F3",
+  orange: "#D97706",
+  orangeLight: "#FEF3C7",
+  teal: "#0D9488",
+  tealLight: "#CCFBF1",
+  blue: "#2563EB",
+  blueLight: "#DBEAFE",
+  yellow: "#CA8A04",
+  yellowLight: "#FEF9C3",
 
-  border: "#ECE7F9",
-  danger: "#F0546B",
-  success: "#2FC7B4",
+  border: "#E5E1D8",
+  danger: "#DC2626",
+  success: "#059669",
 } as const;
 
 export const accentPairs = [

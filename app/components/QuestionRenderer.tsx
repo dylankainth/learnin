@@ -44,7 +44,7 @@ export function QuestionRenderer({
                 styles.option,
                 isSelected && !revealed && { borderColor: colors.primary, backgroundColor: colors.primarySoft },
                 showCorrect && { borderColor: colors.success, backgroundColor: colors.tealLight },
-                showWrong && { borderColor: colors.danger, backgroundColor: "#FDE4E8" },
+                showWrong && { borderColor: colors.danger, backgroundColor: "#FEE2E2" },
               ]}
             >
               <Text style={typography.body}>{opt}</Text>

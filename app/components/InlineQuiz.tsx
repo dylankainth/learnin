@@ -32,7 +32,7 @@ export function InlineQuiz({ block }: { block: QuizBlockView }) {
                   styles.option,
                   isSelected && !revealed && { borderColor: colors.primary, backgroundColor: colors.primarySoft },
                   showAsCorrect && { borderColor: colors.success, backgroundColor: colors.tealLight },
-                  showAsWrong && { borderColor: colors.danger, backgroundColor: "#FDE4E8" },
+                  showAsWrong && { borderColor: colors.danger, backgroundColor: "#FEE2E2" },
                 ]}
               >
                 <Text style={typography.body}>{opt}</Text>

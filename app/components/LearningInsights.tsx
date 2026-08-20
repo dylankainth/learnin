@@ -54,7 +54,7 @@ export function LearningInsights({
       )}
 
       {lapseRate > 0.2 && (
-        <View style={[styles.warning, { backgroundColor: "#FFF3D6" }]}>
+        <View style={[styles.warning, { backgroundColor: colors.yellowLight }]}>
           <Text style={[typography.caption, { color: colors.orange }]}>
             ⚠ {Math.round(lapseRate * 100)}% lapse rate - try easier cards or more frequent reviews
           </Text>

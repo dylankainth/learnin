@@ -18,13 +18,13 @@ function FlameIcon({ size = 28 }: { size?: number }) {
 
 export function StreakBadge({ streak, subtitle }: { streak: number; subtitle: string }) {
   return (
-    <LinearGradient colors={[colors.orange, "#FF7A45"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
+    <LinearGradient colors={[colors.orange, "#C96A00"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
       <View style={styles.iconWrap}>
         <FlameIcon />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[typography.h2, { color: "#fff" }]}>{subtitle}</Text>
-        <Text style={[typography.caption, { color: "#FFE7D6" }]}>See your progress →</Text>
+        <Text style={[typography.caption, { color: colors.orangeLight }]}>See your progress →</Text>
       </View>
       <Text style={styles.streakNumber}>{streak}</Text>
     </LinearGradient>
