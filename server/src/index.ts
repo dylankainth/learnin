@@ -10,6 +10,7 @@ import { notificationsRouter } from "./routes/notifications.js";
 import { progressRouter } from "./routes/progress.js";
 import { chatRouter } from "./routes/chat.js";
 import { gamificationRouter } from "./routes/gamification.js";
+import { blocksRouter } from "./routes/blocks.js";
 import { startReminderCron } from "./services/push.js";
 
 async function main() {
@@ -39,6 +40,7 @@ async function main() {
   app.use("/progress", progressRouter);
   app.use("/chat", chatRouter);
   app.use("/gamification", gamificationRouter);
+  app.use("/blocks", blocksRouter);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);

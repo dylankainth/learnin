@@ -7,6 +7,7 @@ import type {
   ReviewStats,
   Topic,
   TopicDetail,
+  TopicStudyDetail,
   User,
 } from "./types";
 
@@ -60,6 +61,10 @@ export const api = {
         body: JSON.stringify({ name, description }),
       }),
     delete: (id: string) => request<void>(`/topics/${id}`, { method: "DELETE" }),
+    study: (id: string) => request<TopicStudyDetail>(`/topics/${id}/study`),
+  },
+  blocks: {
+    lock: (id: string) => request<{ ok: boolean }>(`/blocks/${id}/lock`, { method: "PATCH" }),
   },
   documents: {
     list: (topicId?: string) =>

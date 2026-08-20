@@ -92,3 +92,31 @@ export interface TopicDetail {
   topic: Topic;
   contents: DocumentSummary[];
 }
+
+export interface TopicBlock {
+  id: string;
+  type: "explainer" | "quiz";
+  topic_order_index: number;
+  locked: boolean;
+  // explainer fields
+  markdown?: string;
+  // quiz fields
+  question?: string;
+  options?: string[] | null;
+  answer?: string;
+  explanation?: string;
+  cardId?: string;
+  dueAt?: string;
+  reps?: number;
+}
+
+export interface TopicStudyDetail {
+  topic: {
+    id: string;
+    name: string;
+    description?: string;
+    color_accent?: string;
+  };
+  processingCount: number;
+  blocks: TopicBlock[];
+}

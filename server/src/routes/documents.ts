@@ -19,6 +19,7 @@ documentsRouter.post("/", upload.single("file"), async (req: AuthedRequest, res)
   const file = req.file;
   const title = typeof req.body.title === "string" && req.body.title.trim() ? req.body.title.trim() : file?.originalname;
   const topicId = typeof req.body.topic_id === "string" ? req.body.topic_id : null;
+  const integrationMode = req.body.integration_mode === "arrange" ? "arrange" : "append";
   if (!file) {
     res.status(400).json({ error: "No file uploaded (expected multipart field 'file')" });
     return;
@@ -40,6 +41,7 @@ documentsRouter.post("/", upload.single("file"), async (req: AuthedRequest, res)
   form.append("source_type", sourceType);
   form.append("original_filename", file.originalname);
   form.append("status", "pending");
+  form.append("integration_mode", integrationMode);
   if (topicId) form.append("topic_id", topicId);
   form.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
 

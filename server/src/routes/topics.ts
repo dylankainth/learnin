@@ -203,6 +203,68 @@ topicsRouter.patch("/:id", async (req: AuthedRequest, res) => {
   }
 });
 
+topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
+  const { id } = req.params;
+  await ensureSuperuserAuth();
+  try {
+    const topic = await pb.collection("topics").getOne(id);
+    if (topic.user_id !== req.userId) {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
+
+    const [documents, blocks, cards] = await Promise.all([
+      pb.collection("documents").getFullList({
+        filter: pb.filter("topic_id = {:tid}", { tid: id }),
+        fields: "id,title,status",
+      }),
+      pb.collection("blocks").getFullList({
+        filter: pb.filter("topic_id = {:tid}", { tid: id }),
+        fields: "id,document_id,type,content,topic_order_index,locked",
+      }),
+      pb.collection("cards").getFullList({
+        filter: pb.filter("topic_id = {:tid}", { tid: id }),
+        fields: "id,block_id,due_at,reps",
+      }),
+    ]);
+
+    // Only show blocks from ready documents
+    const readyDocIds = new Set(documents.filter((d) => d.status === "ready").map((d) => d.id));
+    const processingCount = documents.filter((d) => d.status === "pending" || d.status === "processing").length;
+
+    const cardByBlock = new Map(cards.map((c) => [c.block_id, c]));
+    const readyBlocks = blocks
+      .filter((b) => readyDocIds.has(b.document_id))
+      .sort((a, b) => (a.topic_order_index ?? 0) - (b.topic_order_index ?? 0));
+
+    res.json({
+      topic: {
+        id: topic.id,
+        name: topic.name,
+        description: topic.description || undefined,
+        color_accent: topic.color_accent,
+      },
+      processingCount,
+      blocks: readyBlocks.map((block) => {
+        const card = cardByBlock.get(block.id);
+        return {
+          id: block.id,
+          type: block.type,
+          topic_order_index: block.topic_order_index,
+          locked: block.locked ?? false,
+          ...block.content,
+          cardId: card?.id,
+          dueAt: card?.due_at,
+          reps: card?.reps,
+        };
+      }),
+    });
+  } catch (err) {
+    console.error("Failed to fetch topic study:", err);
+    res.status(500).json({ error: "Failed to fetch topic study" });
+  }
+});
+
 topicsRouter.delete("/:id", async (req: AuthedRequest, res) => {
   const { id } = req.params;
   await ensureSuperuserAuth();

@@ -109,6 +109,7 @@ export async function ensureCollections(): Promise<void> {
     { name: "status", type: "text" },
     { name: "error_message", type: "text" },
     { name: "topic_id", type: "text" },
+    { name: "integration_mode", type: "text" },
   ]);
 
   await upsertCollection("blocks", [
@@ -116,6 +117,9 @@ export async function ensureCollections(): Promise<void> {
     { name: "order_index", type: "number" },
     { name: "type", type: "text" },
     { name: "content", type: "json" },
+    { name: "topic_id", type: "text" },
+    { name: "topic_order_index", type: "number" },
+    { name: "locked", type: "bool" },
   ]);
 
   await upsertCollection("cards", [

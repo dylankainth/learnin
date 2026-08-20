@@ -142,6 +142,81 @@ function splitIntoChunks(text: string, budget: number): string[] {
   return chunks;
 }
 
+const arrangementSchema = z.object({
+  placements: z
+    .array(
+      z.object({
+        new_block_index: z.number().describe("0-based index into the new_blocks array"),
+        insert_after_existing_index: z
+          .number()
+          .nullable()
+          .describe("0-based index into existing_blocks to insert after, or null to insert at the very beginning"),
+      }),
+    )
+    .describe("One entry per new block, describing where it fits best in the existing document"),
+});
+
+const ARRANGEMENT_JSON_SCHEMA = toStrictJsonSchema(arrangementSchema);
+
+export type BlockPlacement = { new_block_index: number; insert_after_existing_index: number | null };
+
+/**
+ * Given summaries of existing (unlocked) topic blocks and new blocks just
+ * generated, returns optimal insertion placements for the new content so the
+ * topic reads as a single coherent document.
+ */
+export async function arrangeTopicBlocks(
+  existingBlocks: { summary: string; index: number }[],
+  newBlocks: GeneratedBlock[],
+): Promise<BlockPlacement[]> {
+  const existingList = existingBlocks
+    .map((b, i) => `[${i}] ${b.summary}`)
+    .join("\n");
+  const newList = newBlocks
+    .filter((b) => b.type === "explainer")
+    .map((b, i) => `[${i}] ${(b as ExplainerBlock).markdown.slice(0, 200)}`)
+    .join("\n");
+
+  const completion = await client.chat.completions.create({
+    model: env.openRouterModel,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a curriculum designer. Given an existing document outline and new content blocks, determine the optimal insertion point for each new block so the document reads as a single coherent unit. Respond with JSON only.",
+      },
+      {
+        role: "user",
+        content: `Existing document blocks (in order):\n${existingList || "(empty)"}\n\nNew blocks to insert:\n${newList}\n\nFor each new block, specify which existing block index to insert it after (null = insert at the beginning). If a new block logically continues from the end of the existing document, use the last existing block index.`,
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "arrangement", strict: true, schema: ARRANGEMENT_JSON_SCHEMA },
+    },
+  });
+
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) throw new Error("OpenRouter returned no content for block arrangement");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("OpenRouter did not return valid JSON for block arrangement");
+  }
+
+  const result = arrangementSchema.safeParse(parsed);
+  if (!result.success) {
+    // Fall back to appending everything at the end
+    return newBlocks.map((_, i) => ({
+      new_block_index: i,
+      insert_after_existing_index: existingBlocks.length - 1,
+    }));
+  }
+  return result.data.placements;
+}
+
 /**
  * Turns raw extracted lecture text into an ordered list of explainer/quiz
  * blocks. Single API call for a normal lecture; chunked map-reduce (each
