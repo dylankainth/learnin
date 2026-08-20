@@ -69,7 +69,6 @@ documentsRouter.get("/", async (req: AuthedRequest, res) => {
   const [docs, cards] = await Promise.all([
     pb.collection("documents").getFullList({
       filter,
-      sort: "-created",
     }),
     pb.collection("cards").getFullList({
       filter: pb.filter("user_id = {:uid}", { uid: req.userId }),

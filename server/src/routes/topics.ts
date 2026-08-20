@@ -12,7 +12,6 @@ topicsRouter.get("/", async (req: AuthedRequest, res) => {
     const [topics, documents, cards] = await Promise.all([
       pb.collection("topics").getFullList({
         filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
-        sort: "-created",
         fields: "id,name,description,color_accent,created",
       }),
       pb.collection("documents").getFullList({
@@ -72,7 +71,6 @@ topicsRouter.get("/:id", async (req: AuthedRequest, res) => {
     const [documents, cards] = await Promise.all([
       pb.collection("documents").getFullList({
         filter: pb.filter("topic_id = {:tid}", { tid: id }),
-        sort: "-created",
       }),
       pb.collection("cards").getFullList({
         filter: pb.filter("topic_id = {:tid}", { tid: id }),
