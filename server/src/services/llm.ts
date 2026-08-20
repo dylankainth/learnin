@@ -24,31 +24,46 @@ const CHUNK_CHAR_BUDGET = 40_000;
 
 const explainerBlock = z.object({
   type: z.literal("explainer"),
-  markdown: z
-    .string()
-    .describe("A few paragraphs of clear, conversational explainer prose covering one coherent idea from the source material."),
+  markdown: z.string().describe(
+    "Rich markdown for one major section of the document. " +
+    "Start with a ## heading for the section title. " +
+    "Use ### for subsections and #### for sub-subsections if the section warrants it. " +
+    "Write in full paragraphs (3-6 sentences each) separated by blank lines. " +
+    "Use **bold** for key terms on first introduction, *italic* for emphasis and titles. " +
+    "Use `inline code` for technical terms, variable names, formulas. " +
+    "Use fenced code blocks (```language\\n...\\n```) for multi-line code or pseudocode. " +
+    "Use - bullet lists for enumerable items; use 1. numbered lists for steps or ranked items. " +
+    "Aim for 200-600 words — enough to thoroughly cover the idea with examples. " +
+    "Do NOT add a quiz question inside this block.",
+  ),
 });
 
 const quizBlock = z.object({
   type: z.literal("quiz"),
-  question: z.string().describe("A short recall/understanding question about the explainer text immediately above it."),
+  question: z.string().describe("A recall or understanding question testing the section just above it."),
   options: z
     .array(z.string())
     .min(2)
-    .max(5)
+    .max(4)
     .nullable()
-    .describe("2-5 multiple choice options if this suits a multiple-choice format, otherwise null for a short free-recall answer."),
-  answer: z.string().describe("The correct answer — exact text of the correct option if options is set, otherwise a short model answer."),
-  explanation: z.string().describe("One or two sentences explaining why the answer is correct, for after the learner responds."),
+    .describe("2-4 multiple choice options when that format is appropriate, otherwise null for a short free-recall answer."),
+  answer: z.string().describe("The correct answer — exact text of the correct option if options is set, otherwise a concise model answer."),
+  explanation: z.string().describe("One or two sentences explaining why the answer is correct."),
 });
 
 const chunkResultSchema = z.object({
   blocks: z
     .array(z.discriminatedUnion("type", [explainerBlock, quizBlock]))
-    .describe("Ordered list of blocks. Every explainer block should be followed by exactly one quiz block testing what was just introduced, before moving to the next idea."),
+    .describe(
+      "Ordered list of blocks forming a book-like document. " +
+      "Each explainer block covers one major section (## heading) and may contain subsections (###, ####). " +
+      "Place exactly one quiz block after each explainer block at a natural section break — " +
+      "do NOT insert a quiz after every paragraph, only at the end of a complete ## section. " +
+      "Prefer fewer, richer sections over many tiny ones.",
+    ),
   running_summary: z
     .string()
-    .describe("A brief (3-6 sentence) rolling summary of everything covered so far, including this chunk. Used as context for continuing the document — do not repeat quizzes already asked."),
+    .describe("A brief (3-6 sentence) rolling summary of everything covered so far, including this chunk. Used as context for continuing the document."),
 });
 
 export type ExplainerBlock = z.infer<typeof explainerBlock>;
@@ -62,15 +77,16 @@ function toStrictJsonSchema(schema: z.ZodType): Record<string, unknown> {
 
 const CHUNK_RESULT_JSON_SCHEMA = toStrictJsonSchema(chunkResultSchema);
 
-const SYSTEM_PROMPT = `You are an expert teacher turning raw lecture material (a PDF's extracted text, or a video's transcript) into a long-form, scrollable study document in the style of quantum.country / Duolingo: clear, friendly explainer prose broken into short digestible sections, with a quiz question testing recall inserted right after each new idea before moving to the next one.
+const SYSTEM_PROMPT = `You are an expert author turning raw lecture material into a polished, book-quality study document — think a well-written textbook chapter or a high-quality online course page.
 
 Rules:
-- Cover the source material faithfully and in full — don't skip sections or invent content that isn't there.
-- Write explainer blocks as if teaching a curious student who has not seen the source: define terms, motivate why each idea matters, use concrete examples.
-- Keep each explainer block focused on ONE idea (roughly 80-200 words) so a quiz can immediately follow it.
-- After every explainer block, add exactly one quiz block testing the idea just introduced. Vary between multiple-choice and short-answer (options: null) questions.
-- Quiz questions should test understanding and recall, not trivia — the kind of question that, reviewed later with spaced repetition, cements the concept in long-term memory.
-- Do not ask a quiz question about anything not yet explained.
+- Cover the source material faithfully and completely — do not skip topics or invent content.
+- Structure the document using ## for major sections, ### for subsections, #### for sub-subsections where the material warrants it.
+- Write in full, well-formed paragraphs. Explain concepts as if writing for a smart student who has never seen this material before: define every term, motivate why each idea matters, use concrete examples and analogies.
+- Use markdown formatting richly: **bold** key terms on first use, *italic* for emphasis and titles, \`inline code\` for technical terms and formulas, fenced code blocks for multi-line code or pseudocode, bullet and numbered lists where appropriate.
+- Each explainer block should cover one complete major section (200-600 words) — rich and thorough, not a brief paragraph.
+- Place a quiz block after each explainer block (at the end of the section, not mid-section). Vary formats between multiple-choice and short free-recall answers. Quiz questions should test genuine understanding, not surface recall.
+- Do not ask quiz questions about topics not yet explained.
 - Respond with JSON only, matching the given schema exactly.`;
 
 function buildUserPrompt(params: {
