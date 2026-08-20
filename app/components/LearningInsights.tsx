@@ -6,7 +6,6 @@ import { typography, radii } from "@/theme/typography";
 interface LearningInsightsProps {
   retentionRate: number;
   avgReps: number;
-  masteredCards: number;
   lapseRate: number;
   optimalReviewTime?: string;
 }
@@ -14,7 +13,6 @@ interface LearningInsightsProps {
 export function LearningInsights({
   retentionRate,
   avgReps,
-  masteredCards,
   lapseRate,
   optimalReviewTime,
 }: LearningInsightsProps) {

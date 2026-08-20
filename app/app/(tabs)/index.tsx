@@ -7,7 +7,6 @@ import { typography, radii } from "@/theme/typography";
 import { StreakBadge } from "@/components/StreakBadge";
 import { TopicCard } from "@/components/TopicCard";
 import { CalendarHeatmap } from "@/components/CalendarHeatmap";
-import { StatsCard } from "@/components/StatsCard";
 import { LearningInsights } from "@/components/LearningInsights";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -18,7 +17,7 @@ export default function HomeScreen() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
-  const [retention, setRetention] = useState<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number } | null>(null);
+  const [retention, setRetention] = useState<{ lapsed: number; avgReps: number; retentionRate: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -82,27 +81,10 @@ export default function HomeScreen() {
 
             {retention && (
               <View style={{ gap: 12 }}>
-                <Text style={[typography.caption, { color: colors.textMuted }]}>YOUR PROGRESS</Text>
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <StatsCard
-                    label="Mastered"
-                    value={retention.mastered}
-                    icon="✨"
-                    color={colors.success}
-                    subtext={`${retention.retentionRate}% retention`}
-                  />
-                  <StatsCard
-                    label="Studied"
-                    value={retention.studied}
-                    icon="📚"
-                    color={colors.blue}
-                  />
-                </View>
                 <LearningInsights
                   retentionRate={retention.retentionRate}
                   avgReps={retention.avgReps}
-                  masteredCards={retention.mastered}
-                  lapseRate={retention.lapsed / Math.max(retention.studied, 1)}
+                  lapseRate={retention.lapsed / Math.max(retention.lapsed + retention.retentionRate, 1)}
                 />
                 <CalendarHeatmap data={heatmap} title="Study Activity (90d)" />
               </View>
