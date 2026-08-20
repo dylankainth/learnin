@@ -65,39 +65,6 @@ export default function CreateTopicScreen() {
           </Text>
         </View>
 
-        {/* Info cards */}
-        <View style={styles.infoCards}>
-          <View style={[styles.infoCard, { borderLeftColor: colors.success }]}>
-            <Text style={styles.infoIcon}>📚</Text>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[typography.caption, { color: colors.textMuted, fontWeight: "600" }]}>Add Content</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, fontSize: 11, marginTop: 2 }]}>
-                Upload PDFs, videos, or documents
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoCard, { borderLeftColor: colors.blue }]}>
-            <Text style={styles.infoIcon}>✨</Text>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[typography.caption, { color: colors.textMuted, fontWeight: "600" }]}>Auto-Generate Cards</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, fontSize: 11, marginTop: 2 }]}>
-                AI creates study cards automatically
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoCard, { borderLeftColor: colors.teal }]}>
-            <Text style={styles.infoIcon}>🧠</Text>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[typography.caption, { color: colors.textMuted, fontWeight: "600" }]}>Smart Review</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, fontSize: 11, marginTop: 2 }]}>
-                Spaced repetition keeps knowledge fresh
-              </Text>
-            </View>
-          </View>
-        </View>
-
         {/* Input section */}
         <View style={styles.inputSection}>
           <Text style={[typography.caption, { color: colors.textMuted, marginBottom: 12 }]}>TOPIC DETAILS</Text>
@@ -173,22 +140,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-  infoCards: {
-    gap: 10,
-    marginBottom: 28,
-  },
-  infoCard: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    borderLeftWidth: 4,
-    padding: 12,
-    alignItems: "flex-start",
-  },
-  infoIcon: {
-    fontSize: 24,
-    marginTop: 2,
   },
   inputSection: {
     marginBottom: 20,
