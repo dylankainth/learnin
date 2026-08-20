@@ -47,13 +47,15 @@ async function main() {
 
   startReminderCron();
 
-  app.listen(env.port, () => console.log(`API listening on :${env.port}`));
-
-  // Initialize PocketBase collections asynchronously (non-blocking)
-  ensureCollections().catch((err) => {
+  try {
+    await ensureCollections();
+    console.log("PocketBase collections ready");
+  } catch (err) {
     console.error("Failed to initialize PocketBase collections:", err);
-    console.log("API will continue running but features requiring PocketBase may not work");
-  });
+    process.exit(1);
+  }
+
+  app.listen(env.port, () => console.log(`API listening on :${env.port}`));
 }
 
 main().catch((err) => {

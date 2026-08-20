@@ -36,9 +36,9 @@ interface FieldDef {
 }
 
 async function upsertCollection(name: string, fields: FieldDef[], type: "base" | "auth" = "base"): Promise<void> {
-  let existing: { id: string; fields: FieldDef[] } | null = null;
+  let existing: { id: string; fields: Array<Record<string, unknown>> } | null = null;
   try {
-    existing = (await pb.collections.getOne(name)) as unknown as { id: string; fields: FieldDef[] };
+    existing = (await pb.collections.getOne(name)) as unknown as { id: string; fields: Array<Record<string, unknown>> };
   } catch {
     existing = null;
   }
@@ -48,10 +48,15 @@ async function upsertCollection(name: string, fields: FieldDef[], type: "base" |
     return;
   }
 
-  const existingNames = new Set(existing.fields.map((f) => f.name));
+  const existingNames = new Set(existing.fields.map((f) => f.name as string));
   const missing = fields.filter((f) => !existingNames.has(f.name));
   if (missing.length > 0) {
-    await pb.collections.update(existing.id, { fields: [...existing.fields, ...missing] });
+    // Merge: keep existing fields as-is (with their PocketBase-assigned ids/options),
+    // append only the new fields we need.
+    await pb.collections.update(existing.id, {
+      fields: [...existing.fields, ...missing],
+    });
+    console.log(`[collections] Added fields to '${name}':`, missing.map((f) => f.name));
   }
 }
 
