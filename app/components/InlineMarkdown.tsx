@@ -184,10 +184,12 @@ export function InlineMarkdown({
   text,
   blockId,
   readParagraphs = [],
+  onStatsChange,
 }: {
   text: string;
   blockId?: string;
   readParagraphs?: number[];
+  onStatsChange?: (total: number, read: number) => void;
 }) {
   const [readSet, setReadSet] = useState<Set<number>>(() => new Set(readParagraphs));
   const elementCounter = useRef(0);
@@ -197,6 +199,12 @@ export function InlineMarkdown({
     setReadSet(new Set(readParagraphs));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serialized]);
+
+  useEffect(() => {
+    onStatsChange?.(elementCounter.current, readSet.size);
+  // onStatsChange is stable (useCallback in parent); elementCounter.current is set during render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readSet.size]);
 
   const toggleElement = useCallback(
     (index: number) => {
@@ -231,7 +239,7 @@ export function InlineMarkdown({
         const isRead = readSet.has(index);
         return (
           <TappableItem key={node.key} isRead={isRead} onToggle={() => toggleElement(index)}>
-            {renderRules.list_item(node, children, parent, styles, inheritedStyles)}
+            {(renderRules.list_item as any)(node, children, parent, styles, inheritedStyles)}
           </TappableItem>
         );
       },

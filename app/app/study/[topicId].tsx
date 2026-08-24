@@ -19,7 +19,7 @@ try {
   // not linked — volume scrolling unavailable (e.g. Expo Go)
 }
 import { colors } from "@/theme/colors";
-import { typography, radii, fonts } from "@/theme/typography";
+import { typography, fonts } from "@/theme/typography";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { InlineQuiz } from "@/components/InlineQuiz";
 import { api } from "@/lib/api";
@@ -53,12 +53,26 @@ export default function TopicStudyScreen() {
   const [detail, setDetail] = useState<TopicStudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [contentsVisible, setContentsVisible] = useState(false);
+  const [scrollPercent, setScrollPercent] = useState(0);
+  const [progressStats, setProgressStats] = useState({ total: 0, read: 0 });
+  const blockStatsRef = useRef<Map<string, { total: number; read: number }>>(new Map());
+  const contentHeight = useRef(0);
+  const viewportHeight = useRef(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const blockOffsets = useRef<number[]>([]);
   const scrollY = useRef(0);
   const lastVolume = useRef<number | null>(null);
   const SCROLL_STEP = Dimensions.get("window").height * 0.8;
+
+  const onBlockStatsChange = useCallback((blockId: string, total: number, read: number) => {
+    const prev = blockStatsRef.current.get(blockId);
+    if (prev?.total === total && prev?.read === read) return;
+    blockStatsRef.current.set(blockId, { total, read });
+    let t = 0, r = 0;
+    for (const s of blockStatsRef.current.values()) { t += s.total; r += s.read; }
+    setProgressStats({ total: t, read: r });
+  }, []);
 
   const load = useCallback(async (silent = false) => {
     if (!topicId) return;
@@ -169,8 +183,15 @@ export default function TopicStudyScreen() {
         style={{ backgroundColor: colors.bg }}
         contentContainerStyle={styles.page}
         showsVerticalScrollIndicator={false}
-        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          scrollY.current = y;
+          const scrollable = contentHeight.current - viewportHeight.current;
+          setScrollPercent(scrollable > 0 ? Math.min(100, Math.round((y / scrollable) * 100)) : 0);
+        }}
         scrollEventThrottle={16}
+        onContentSizeChange={(_w, h) => { contentHeight.current = h; }}
+        onLayout={(e) => { viewportHeight.current = e.nativeEvent.layout.height; }}
       >
         {detail.blocks.map((block, index) =>
           block.type === "explainer" ? (
@@ -183,6 +204,7 @@ export default function TopicStudyScreen() {
               <ExplainerItem
                 block={block}
                 onLock={() => onLockBlock(block.id)}
+                onStatsChange={onBlockStatsChange}
               />
             </View>
           ) : (
@@ -208,6 +230,13 @@ export default function TopicStudyScreen() {
 
         <View style={{ height: 60 }} />
       </ScrollView>
+
+      <View style={styles.progressBar}>
+        <Text style={styles.progressText}>{scrollPercent}%</Text>
+        <Text style={styles.progressText}>
+          {progressStats.read}/{progressStats.total}
+        </Text>
+      </View>
 
       {toc.length > 0 && (
         <ContentsModal
@@ -266,13 +295,22 @@ function ContentsModal({
   );
 }
 
-function ExplainerItem({ block, onLock }: { block: TopicBlock; onLock: () => void }) {
+function ExplainerItem({
+  block,
+  onLock,
+  onStatsChange,
+}: {
+  block: TopicBlock;
+  onLock: () => void;
+  onStatsChange?: (blockId: string, total: number, read: number) => void;
+}) {
   return (
     <View style={styles.section}>
       <InlineMarkdown
         text={block.markdown ?? ""}
         blockId={block.id}
         readParagraphs={block.readParagraphs ?? []}
+        onStatsChange={(total, read) => onStatsChange?.(block.id, total, read)}
       />
     </View>
   );
@@ -359,6 +397,21 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textTransform: "uppercase",
     marginBottom: 12,
+  },
+  progressBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  progressText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.textMuted,
   },
   processingFooter: {
     flexDirection: "row",
