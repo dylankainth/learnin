@@ -109,7 +109,7 @@ export default function TopicDetailScreen() {
           <View style={styles.processingBanner}>
             <ActivityIndicator color={colors.primary} size="small" />
             <Text style={[typography.caption, { color: colors.textMuted, marginLeft: 8 }]}>
-              {processingCount} lecture{processingCount !== 1 ? "s" : ""} still processing…
+              {processingCount} resource{processingCount !== 1 ? "s" : ""} still processing…
             </Text>
           </View>
         )}
@@ -117,7 +117,7 @@ export default function TopicDetailScreen() {
         {/* Content list */}
         <View style={{ marginTop: 24 }}>
           <View style={styles.sectionHeader}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>LECTURES</Text>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>RESOURCES</Text>
             <Pressable
               onPress={() =>
                 router.push({
@@ -138,7 +138,11 @@ export default function TopicDetailScreen() {
             </View>
           ) : (
             contents.map((item) => (
-              <View key={item.id} style={styles.contentRow}>
+              <Pressable
+                key={item.id}
+                style={({ pressed }) => [styles.contentRow, pressed && { opacity: 0.7 }]}
+                onPress={() => router.push({ pathname: "/document/[id]", params: { id: item.id } })}
+              >
                 <View style={[styles.statusDot, { backgroundColor: statusColor(item.status) }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={typography.bodyMedium} numberOfLines={1}>{item.title}</Text>
@@ -146,7 +150,8 @@ export default function TopicDetailScreen() {
                     {statusLabel(item.status)} • {item.card_count} cards
                   </Text>
                 </View>
-              </View>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>›</Text>
+              </Pressable>
             ))
           )}
         </View>
