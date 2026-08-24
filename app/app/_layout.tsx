@@ -68,7 +68,9 @@ export default function RootLayout() {
           gestureEnabled: true,
           animationMatchesGesture: true,
         }}
-      />
+      >
+        <Stack.Screen name="(auth)" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+      </Stack>
     </AuthProvider>
   );
 }

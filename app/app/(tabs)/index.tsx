@@ -123,7 +123,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 },
+  list: { paddingHorizontal: 20, paddingBottom: 104, paddingTop: 8 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   reviewCta: {
     backgroundColor: colors.primary,

@@ -39,7 +39,7 @@ export default function ReviewScreen() {
         keyExtractor={(t) => t.id}
         numColumns={2}
         columnWrapperStyle={{ gap: 14 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 104, gap: 14 }}
         ListHeaderComponent={
           dueNow > 0 ? (
             <Pressable style={styles.allCard} onPress={() => router.push("/review/session")}>

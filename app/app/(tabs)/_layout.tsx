@@ -1,33 +1,43 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
-import { colors } from "@/theme/colors";
-import { fonts } from "@/theme/typography";
+import * as NavigationBar from "expo-navigation-bar";
 import { HomeIcon, ReviewIcon, ProfileIcon } from "@/components/TabBarIcon";
 
+const NAV_BG = "#002B3A";
+
 export default function TabsLayout() {
+  useEffect(() => {
+    NavigationBar.setBackgroundColorAsync("#FFFFFF");
+    NavigationBar.setButtonStyleAsync("dark");
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11 },
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "rgba(255,255,255,0.4)",
         tabBarStyle: {
-          height: 78,
-          paddingTop: 10,
-          paddingBottom: 20,
+          position: "absolute",
+          bottom: 20,
+          left: 80,
+          right: 80,
+          borderRadius: 28,
+          height: 64,
+          backgroundColor: NAV_BG,
           borderTopWidth: 0,
-          backgroundColor: colors.surface,
-          shadowColor: "#3B2E8A",
-          shadowOpacity: 0.08,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: -4 },
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 10,
         },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
-      <Tabs.Screen name="review" options={{ title: "Review", tabBarIcon: ({ color }) => <ReviewIcon color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ color }) => <ProfileIcon color={color} /> }} />
+      <Tabs.Screen name="index" options={{ tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
+      <Tabs.Screen name="review" options={{ tabBarIcon: ({ color }) => <ReviewIcon color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ tabBarIcon: ({ color }) => <ProfileIcon color={color} /> }} />
     </Tabs>
   );
 }

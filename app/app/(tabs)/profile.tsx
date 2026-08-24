@@ -112,7 +112,7 @@ function NavRow({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+  wrap: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 104 },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   avatar: {
     width: 72,
