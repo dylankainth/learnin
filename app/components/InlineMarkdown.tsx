@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
-import Markdown from "react-native-markdown-display";
+import Markdown, { renderRules } from "react-native-markdown-display";
 import { api } from "@/lib/api";
 import { colors } from "@/theme/colors";
 import { fonts, serifFonts } from "@/theme/typography";
 
-function TappableParagraph({
-  style,
+function TappableItem({
   children,
   isRead,
   onToggle,
 }: {
-  style: object;
   children: React.ReactNode;
   isRead: boolean;
   onToggle: () => void;
@@ -46,7 +44,7 @@ function TappableParagraph({
     <Pressable onPress={onToggle}>
       <View style={{ position: "relative" }}>
         <Animated.View style={{ opacity: textOpacity }}>
-          <View style={style}>{children}</View>
+          {children}
         </Animated.View>
         <Animated.View
           style={{
@@ -192,16 +190,15 @@ export function InlineMarkdown({
   readParagraphs?: number[];
 }) {
   const [readSet, setReadSet] = useState<Set<number>>(() => new Set(readParagraphs));
-  const paragraphCounter = useRef(0);
+  const elementCounter = useRef(0);
 
-  // Sync when server returns updated readParagraphs (e.g. after screen refocus)
   const serialized = readParagraphs.slice().sort((a, b) => a - b).join(",");
   useEffect(() => {
     setReadSet(new Set(readParagraphs));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serialized]);
 
-  const toggleParagraph = useCallback(
+  const toggleElement = useCallback(
     (index: number) => {
       setReadSet((prev) => {
         const next = new Set(prev);
@@ -221,24 +218,28 @@ export function InlineMarkdown({
   const rules = useMemo(
     () => ({
       paragraph: (node: any, children: React.ReactNode, _parent: any, styles: any) => {
-        const index = paragraphCounter.current++;
+        const index = elementCounter.current++;
         const isRead = readSet.has(index);
         return (
-          <TappableParagraph
-            key={node.key}
-            style={styles._VIEW_SAFE_paragraph}
-            isRead={isRead}
-            onToggle={() => toggleParagraph(index)}
-          >
-            {children}
-          </TappableParagraph>
+          <TappableItem key={node.key} isRead={isRead} onToggle={() => toggleElement(index)}>
+            <View style={styles._VIEW_SAFE_paragraph}>{children}</View>
+          </TappableItem>
+        );
+      },
+      list_item: (node: any, children: React.ReactNode, parent: any, styles: any, inheritedStyles: any) => {
+        const index = elementCounter.current++;
+        const isRead = readSet.has(index);
+        return (
+          <TappableItem key={node.key} isRead={isRead} onToggle={() => toggleElement(index)}>
+            {renderRules.list_item(node, children, parent, styles, inheritedStyles)}
+          </TappableItem>
         );
       },
     }),
-    [readSet, toggleParagraph],
+    [readSet, toggleElement],
   );
 
-  paragraphCounter.current = 0;
+  elementCounter.current = 0;
 
   return (
     <Markdown style={markdownStyles} rules={rules}>
