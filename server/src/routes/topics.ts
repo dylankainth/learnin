@@ -214,7 +214,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
       return;
     }
 
-    const [documents, blocks, cards] = await Promise.all([
+    const [documents, blocks, cards, paragraphReads] = await Promise.all([
       pb.collection("documents").getFullList({
         filter: pb.filter("topic_id = {:tid}", { tid: id }),
         fields: "id,title,status",
@@ -227,6 +227,10 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
         filter: pb.filter("topic_id = {:tid}", { tid: id }),
         fields: "id,block_id,due_at,reps",
       }),
+      pb.collection("paragraph_reads").getFullList({
+        filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+        fields: "block_id,paragraph_indices",
+      }),
     ]);
 
     // Only show blocks from ready documents
@@ -234,6 +238,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
     const processingCount = documents.filter((d) => d.status === "pending" || d.status === "processing").length;
 
     const cardByBlock = new Map(cards.map((c) => [c.block_id, c]));
+    const readsByBlock = new Map(paragraphReads.map((r) => [r.block_id, r.paragraph_indices as number[]]));
     const readyBlocks = blocks
       .filter((b) => readyDocIds.has(b.document_id))
       .sort((a, b) => (a.topic_order_index ?? 0) - (b.topic_order_index ?? 0));
@@ -257,6 +262,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
           cardId: card?.id,
           dueAt: card?.due_at,
           reps: card?.reps,
+          readParagraphs: readsByBlock.get(block.id) ?? [],
         };
       }),
     });

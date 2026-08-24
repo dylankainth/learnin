@@ -65,6 +65,8 @@ export const api = {
   },
   blocks: {
     lock: (id: string) => request<{ ok: boolean }>(`/blocks/${id}/lock`, { method: "PATCH" }),
+    toggleParagraph: (blockId: string, index: number) =>
+      request<{ paragraphIndices: number[] }>(`/blocks/${blockId}/paragraphs/${index}/toggle`, { method: "PATCH" }),
   },
   documents: {
     list: (topicId?: string) =>

@@ -1,7 +1,73 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, Text, View } from "react-native";
 import Markdown from "react-native-markdown-display";
+import { api } from "@/lib/api";
 import { colors } from "@/theme/colors";
 import { fonts, serifFonts } from "@/theme/typography";
+
+function TappableParagraph({
+  style,
+  children,
+  isRead,
+  onToggle,
+}: {
+  style: object;
+  children: React.ReactNode;
+  isRead: boolean;
+  onToggle: () => void;
+}) {
+  const textOpacity = useRef(new Animated.Value(isRead ? 0.3 : 1)).current;
+  const tickOpacity = useRef(new Animated.Value(isRead ? 1 : 0)).current;
+  const tickScale = useRef(new Animated.Value(isRead ? 1 : 0.4)).current;
+  const prevIsRead = useRef(isRead);
+
+  useEffect(() => {
+    if (prevIsRead.current === isRead) return;
+    prevIsRead.current = isRead;
+
+    if (isRead) {
+      Animated.sequence([
+        Animated.parallel([
+          Animated.spring(tickScale, { toValue: 1, bounciness: 14, useNativeDriver: true }),
+          Animated.timing(tickOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        ]),
+        Animated.timing(textOpacity, { toValue: 0.3, duration: 350, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(tickOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.spring(tickScale, { toValue: 0.4, useNativeDriver: true }),
+        Animated.timing(textOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isRead]);
+
+  return (
+    <Pressable onPress={onToggle}>
+      <View style={{ position: "relative" }}>
+        <Animated.View style={{ opacity: textOpacity }}>
+          <View style={style}>{children}</View>
+        </Animated.View>
+        <Animated.View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: "center",
+            alignItems: "center",
+            opacity: tickOpacity,
+            transform: [{ scale: tickScale }],
+          }}
+          pointerEvents="none"
+        >
+          <Text style={{ fontSize: 80, color: colors.text, opacity: 0.13, fontFamily: fonts.bold }}>✓</Text>
+        </Animated.View>
+      </View>
+    </Pressable>
+  );
+}
 
 const markdownStyles = {
   body: {
@@ -55,10 +121,11 @@ const markdownStyles = {
   },
   strong: {
     fontFamily: serifFonts.bold,
+    fontWeight: "normal" as const,
   },
   em: {
     fontFamily: serifFonts.italic,
-    fontStyle: "italic" as const,
+    fontStyle: "normal" as const,
   },
   code_inline: {
     fontFamily: "monospace",
@@ -115,9 +182,66 @@ const markdownStyles = {
   },
 };
 
-export function InlineMarkdown({ text }: { text: string }) {
+export function InlineMarkdown({
+  text,
+  blockId,
+  readParagraphs = [],
+}: {
+  text: string;
+  blockId?: string;
+  readParagraphs?: number[];
+}) {
+  const [readSet, setReadSet] = useState<Set<number>>(() => new Set(readParagraphs));
+  const paragraphCounter = useRef(0);
+
+  // Sync when server returns updated readParagraphs (e.g. after screen refocus)
+  const serialized = readParagraphs.slice().sort((a, b) => a - b).join(",");
+  useEffect(() => {
+    setReadSet(new Set(readParagraphs));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serialized]);
+
+  const toggleParagraph = useCallback(
+    (index: number) => {
+      setReadSet((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) next.delete(index);
+        else next.add(index);
+        return next;
+      });
+      if (blockId) {
+        api.blocks.toggleParagraph(blockId, index).catch((err) => {
+          console.error("toggleParagraph failed:", err);
+        });
+      }
+    },
+    [blockId],
+  );
+
+  const rules = useMemo(
+    () => ({
+      paragraph: (node: any, children: React.ReactNode, _parent: any, styles: any) => {
+        const index = paragraphCounter.current++;
+        const isRead = readSet.has(index);
+        return (
+          <TappableParagraph
+            key={node.key}
+            style={styles._VIEW_SAFE_paragraph}
+            isRead={isRead}
+            onToggle={() => toggleParagraph(index)}
+          >
+            {children}
+          </TappableParagraph>
+        );
+      },
+    }),
+    [readSet, toggleParagraph],
+  );
+
+  paragraphCounter.current = 0;
+
   return (
-    <Markdown style={markdownStyles}>
+    <Markdown style={markdownStyles} rules={rules}>
       {text}
     </Markdown>
   );

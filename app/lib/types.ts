@@ -102,6 +102,7 @@ export interface TopicBlock {
   locked: boolean;
   // explainer fields
   markdown?: string;
+  readParagraphs?: number[];
   // quiz fields
   question?: string;
   options?: string[] | null;

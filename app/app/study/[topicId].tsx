@@ -269,7 +269,11 @@ function ContentsModal({
 function ExplainerItem({ block, onLock }: { block: TopicBlock; onLock: () => void }) {
   return (
     <View style={styles.section}>
-      <InlineMarkdown text={block.markdown ?? ""} />
+      <InlineMarkdown
+        text={block.markdown ?? ""}
+        blockId={block.id}
+        readParagraphs={block.readParagraphs ?? []}
+      />
     </View>
   );
 }

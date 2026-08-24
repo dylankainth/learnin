@@ -168,4 +168,10 @@ export async function ensureCollections(): Promise<void> {
     { name: "goal_completed_today", type: "bool" },
     { name: "last_review_date", type: "date" },
   ]);
+
+  await upsertCollection("paragraph_reads", [
+    { name: "user_id", type: "text" },
+    { name: "block_id", type: "text" },
+    { name: "paragraph_indices", type: "json" },
+  ]);
 }
