@@ -1,13 +1,13 @@
 import React from "react";
 import Markdown from "react-native-markdown-display";
 import { colors } from "@/theme/colors";
-import { fonts } from "@/theme/typography";
+import { fonts, serifFonts } from "@/theme/typography";
 
 const markdownStyles = {
   body: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    lineHeight: 27,
+    fontFamily: serifFonts.regular,
+    fontSize: 17,
+    lineHeight: 29,
     color: colors.text,
     backgroundColor: "transparent",
   },
@@ -46,18 +46,18 @@ const markdownStyles = {
     marginBottom: 4,
   },
   paragraph: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    lineHeight: 27,
+    fontFamily: serifFonts.regular,
+    fontSize: 17,
+    lineHeight: 29,
     color: colors.text,
     marginTop: 0,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   strong: {
-    fontFamily: fonts.bold,
+    fontFamily: serifFonts.bold,
   },
   em: {
-    fontFamily: fonts.regular,
+    fontFamily: serifFonts.italic,
     fontStyle: "italic" as const,
   },
   code_inline: {
@@ -93,9 +93,9 @@ const markdownStyles = {
     marginBottom: 14,
   },
   list_item: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    lineHeight: 27,
+    fontFamily: serifFonts.regular,
+    fontSize: 17,
+    lineHeight: 29,
     color: colors.text,
     marginBottom: 4,
   },

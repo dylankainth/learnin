@@ -8,6 +8,11 @@ import {
   DMSans_500Medium,
   DMSans_700Bold,
 } from "@expo-google-fonts/dm-sans";
+import {
+  SourceSerif4_400Regular,
+  SourceSerif4_400Regular_Italic,
+  SourceSerif4_700Bold,
+} from "@expo-google-fonts/source-serif-4";
 import { AuthProvider } from "@/lib/auth";
 import { colors } from "@/theme/colors";
 
@@ -18,6 +23,9 @@ export default function RootLayout() {
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_700Bold,
+    SourceSerif4_400Regular,
+    SourceSerif4_400Regular_Italic,
+    SourceSerif4_700Bold,
   });
 
   useEffect(() => {

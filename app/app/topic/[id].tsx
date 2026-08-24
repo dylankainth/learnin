@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, router, useLocalSearchParams } from "expo-router";
@@ -12,6 +12,7 @@ export default function TopicDetailScreen() {
   const [topic, setTopic] = useState<Topic | null>(null);
   const [contents, setContents] = useState<DocumentSummary[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const openingPdf = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -141,11 +142,19 @@ export default function TopicDetailScreen() {
               <Pressable
                 key={item.id}
                 style={({ pressed }) => [styles.contentRow, pressed && { opacity: 0.7 }]}
-                onPress={() => {
-                  if (item.file_url && item.source_type === "pdf") {
-                    Linking.openURL(item.file_url).catch(() =>
-                      router.push({ pathname: "/document/[id]", params: { id: item.id } })
-                    );
+                onPress={async () => {
+                  if (item.source_type === "pdf") {
+                    if (openingPdf.current.has(item.id)) return;
+                    openingPdf.current.add(item.id);
+                    try {
+                      const url = item.file_url ?? (await api.documents.get(item.id)).document.fileUrl;
+                      if (url) await Linking.openURL(url);
+                      else router.push({ pathname: "/document/[id]", params: { id: item.id } });
+                    } catch {
+                      router.push({ pathname: "/document/[id]", params: { id: item.id } });
+                    } finally {
+                      openingPdf.current.delete(item.id);
+                    }
                   } else {
                     router.push({ pathname: "/document/[id]", params: { id: item.id } });
                   }

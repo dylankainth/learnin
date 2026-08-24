@@ -4,6 +4,12 @@ export const fonts = {
   bold: "DMSans_700Bold",
 } as const;
 
+export const serifFonts = {
+  regular: "SourceSerif4_400Regular",
+  italic: "SourceSerif4_400Regular_Italic",
+  bold: "SourceSerif4_700Bold",
+} as const;
+
 export const typography = {
   display: { fontFamily: fonts.bold, fontSize: 32, lineHeight: 40, letterSpacing: -0.5 },
   h1: { fontFamily: fonts.bold, fontSize: 26, lineHeight: 33, letterSpacing: -0.3 },
