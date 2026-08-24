@@ -3,12 +3,12 @@ import { Tabs } from "expo-router";
 import * as NavigationBar from "expo-navigation-bar";
 import { HomeIcon, ReviewIcon, ProfileIcon } from "@/components/TabBarIcon";
 
-const NAV_BG = "#002B3A";
+const NAV_BG = "#111111";
 
 export default function TabsLayout() {
   useEffect(() => {
-    NavigationBar.setBackgroundColorAsync("#FFFFFF");
-    NavigationBar.setButtonStyleAsync("dark");
+    NavigationBar.setBackgroundColorAsync(NAV_BG);
+    NavigationBar.setButtonStyleAsync("light");
   }, []);
 
   return (
@@ -17,21 +17,16 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarActiveTintColor: "#FFFFFF",
-        tabBarInactiveTintColor: "rgba(255,255,255,0.4)",
+        tabBarInactiveTintColor: "rgba(255,255,255,0.35)",
         tabBarStyle: {
-          position: "absolute",
-          bottom: 20,
-          left: 80,
-          right: 80,
-          borderRadius: 28,
-          height: 64,
+          height: 68,
           backgroundColor: NAV_BG,
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
         },
         tabBarItemStyle: {
-          paddingVertical: 10,
+          paddingVertical: 12,
         },
       }}
     >
