@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, router, useLocalSearchParams } from "expo-router";
 import { colors } from "@/theme/colors";
@@ -141,7 +141,15 @@ export default function TopicDetailScreen() {
               <Pressable
                 key={item.id}
                 style={({ pressed }) => [styles.contentRow, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push({ pathname: "/document/[id]", params: { id: item.id } })}
+                onPress={() => {
+                  if (item.file_url && item.source_type === "pdf") {
+                    Linking.openURL(item.file_url).catch(() =>
+                      router.push({ pathname: "/document/[id]", params: { id: item.id } })
+                    );
+                  } else {
+                    router.push({ pathname: "/document/[id]", params: { id: item.id } });
+                  }
+                }}
               >
                 <View style={[styles.statusDot, { backgroundColor: statusColor(item.status) }]} />
                 <View style={{ flex: 1 }}>

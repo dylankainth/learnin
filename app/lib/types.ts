@@ -25,6 +25,7 @@ export interface DocumentSummary {
   card_count: string;
   due_count: string;
   topic_id?: string;
+  file_url?: string;
 }
 
 export interface ExplainerBlock {
@@ -56,6 +57,7 @@ export interface DocumentDetail {
     status: "pending" | "processing" | "ready" | "error";
     errorMessage?: string;
     createdAt: string;
+    fileUrl?: string;
   };
   blocks: DocBlock[];
 }

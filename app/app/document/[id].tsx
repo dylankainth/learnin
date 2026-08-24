@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable } from "react-native";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { colors } from "@/theme/colors";
@@ -70,6 +70,7 @@ export default function DocumentReader() {
         title={document.title}
         onClose={() => router.back()}
         onChat={() => router.push({ pathname: "/chat/[documentId]", params: { documentId: id, documentTitle: document.title } })}
+        fileUrl={document.sourceType === "pdf" ? document.fileUrl : undefined}
       />
       <FlatList
         data={blocks}
@@ -84,7 +85,7 @@ export default function DocumentReader() {
   );
 }
 
-function Header({ title, onClose, onChat }: { title: string; onClose: () => void; onChat: () => void }) {
+function Header({ title, onClose, onChat, fileUrl }: { title: string; onClose: () => void; onChat: () => void; fileUrl?: string }) {
   return (
     <View style={styles.header}>
       <Pressable onPress={onClose} hitSlop={12}>
@@ -93,6 +94,11 @@ function Header({ title, onClose, onChat }: { title: string; onClose: () => void
       <Text style={[typography.h2, { flex: 1, marginLeft: 14 }]} numberOfLines={1}>
         {title}
       </Text>
+      {fileUrl && (
+        <Pressable onPress={() => Linking.openURL(fileUrl)} hitSlop={12} style={{ marginRight: 12 }}>
+          <Text style={[typography.caption, { color: colors.primary }]}>PDF</Text>
+        </Pressable>
+      )}
       <Pressable onPress={onChat} hitSlop={12}>
         <Text style={[typography.bodyMedium, { color: colors.primary }]}>💬</Text>
       </Pressable>

@@ -99,6 +99,7 @@ documentsRouter.get("/", async (req: AuthedRequest, res) => {
         card_count: String(counts.cardCount),
         due_count: String(counts.dueCount),
         topic_id: d.topic_id,
+        file_url: d.file ? pb.files.getURL(d, d.file) : undefined,
       };
     }),
   });
@@ -139,6 +140,7 @@ documentsRouter.get("/:id", async (req: AuthedRequest, res) => {
       status: doc.status,
       errorMessage: doc.error_message || undefined,
       createdAt: doc.created,
+      fileUrl: doc.file ? pb.files.getURL(doc, doc.file) : undefined,
     },
     blocks: blocks.map((block) => {
       const card = cardByBlock.get(block.id);

@@ -110,6 +110,7 @@ topicsRouter.get("/:id", async (req: AuthedRequest, res) => {
         card_count: String(cardCountByDoc.get(doc.id) ?? 0),
         due_count: String(dueCountByDoc.get(doc.id) ?? 0),
         topic_id: doc.topic_id,
+        file_url: doc.file ? pb.files.getURL(doc, doc.file) : undefined,
       })),
     });
   } catch (err) {
