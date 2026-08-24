@@ -17,11 +17,11 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { Topic, ReviewStats } from "@/lib/types";
 
-const { width: W, height: H } = Dimensions.get("window");
+const { width: W } = Dimensions.get("window");
 const PAD = 8;
 const CARD_W = (W - PAD * 2 - 8) / 2;
 
-const CARD_BG = "rgba(255,255,255,0.08)";
+const CARD_BG = "#1E1E1E";
 
 const MOODS = [
   { label: "Focused", emoji: "🎯", bg: "#C8F0D8" },
@@ -103,26 +103,25 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
-      <StatusBar style="light" backgroundColor="transparent" />
-      <LinearGradient
-        colors={["#9EC2CE", "#07536C"]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <Image
-        source={require("../../assets/noise.png")}
-        style={[StyleSheet.absoluteFill, { opacity: 0.05 }]}
-        resizeMode="cover"
-        pointerEvents="none"
-      />
+      <StatusBar style="dark" backgroundColor="#FFFFFF" />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#888" />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Large white hero card */}
-        <View style={styles.heroCard}>
+        {/* Hero card — gradient + noise */}
+        <LinearGradient
+          colors={["#9EC2CE", "#07536C"]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.heroCard}
+        >
+          <Image
+            source={require("../../assets/noise.png")}
+            style={[StyleSheet.absoluteFill, { opacity: 0.05, borderRadius: 24 }]}
+            resizeMode="cover"
+            pointerEvents="none"
+          />
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <View style={styles.avatar}>
@@ -157,7 +156,7 @@ export default function HomeScreen() {
               </View>
             ))}
           </ScrollView>
-        </View>
+        </LinearGradient>
 
         {/* Stat cards */}
         <View style={styles.cardsRow}>
@@ -214,20 +213,14 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#07536C" },
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
   scroll: { paddingHorizontal: PAD, paddingBottom: 100, paddingTop: 8 },
 
   heroCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 20,
     marginBottom: 10,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   headerRow: {
     flexDirection: "row",
@@ -240,22 +233,24 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "#002B3A",
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   avatarText: { fontFamily: "Figtree_700Bold", fontSize: 18, color: "#FFFFFF" },
-  welcomeLabel: { fontFamily: "Figtree_400Regular", fontSize: 12, color: "#78716C" },
-  nameText: { fontFamily: "Figtree_700Bold", fontSize: 17, color: "#111111" },
+  welcomeLabel: { fontFamily: "Figtree_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" },
+  nameText: { fontFamily: "Figtree_700Bold", fontSize: 17, color: "#FFFFFF" },
   menuBtn: { padding: 6 },
-  menuIcon: { fontSize: 26, color: "#111111", lineHeight: 30 },
+  menuIcon: { fontSize: 26, color: "#FFFFFF", lineHeight: 30 },
 
-  dateText: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "#78716C", marginBottom: 8 },
+  dateText: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 8 },
 
   greeting: {
     fontFamily: "Figtree_700Bold",
     fontSize: 28,
-    color: "#111111",
+    color: "#FFFFFF",
     lineHeight: 36,
     letterSpacing: -0.5,
     marginBottom: 20,
@@ -271,7 +266,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   moodEmoji: { fontSize: 26 },
-  moodLabel: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "#555" },
+  moodLabel: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)" },
 
   cardsRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
   statCard: { width: CARD_W, borderRadius: 20, padding: 16, gap: 10 },
@@ -291,20 +286,20 @@ const styles = StyleSheet.create({
   },
 
   quizCard: {
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#1C1C1C",
     borderRadius: 20,
     padding: 18,
     gap: 8,
   },
   quizCardHeader: { flexDirection: "row", justifyContent: "space-between" },
-  quizMeta: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "rgba(255,255,255,0.6)" },
+  quizMeta: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "#888" },
   quizQuestion: {
     fontFamily: "Figtree_700Bold",
     fontSize: 18,
     color: "#FFFFFF",
     lineHeight: 24,
   },
-  quizSub: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "rgba(255,255,255,0.6)" },
+  quizSub: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "#888" },
   quizBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
   btnDark: {
     flex: 1,
@@ -321,7 +316,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: "#333",
   },
   btnLightText: { fontFamily: "Figtree_600SemiBold", fontSize: 15, color: "#FFFFFF" },
 });
