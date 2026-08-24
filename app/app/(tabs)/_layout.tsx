@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import * as NavigationBar from "expo-navigation-bar";
-import { HomeIcon, ReviewIcon, ProfileIcon } from "@/components/TabBarIcon";
+import { HomeIcon, ReviewIcon, ProfileIcon, ListIcon, SettingsIcon } from "@/components/TabBarIcon";
 
 const NAV_BG = "#111111";
 
@@ -31,8 +31,9 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
+      <Tabs.Screen name="topics" options={{ tabBarIcon: ({ color }) => <ListIcon color={color} /> }} />
       <Tabs.Screen name="review" options={{ tabBarIcon: ({ color }) => <ReviewIcon color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ tabBarIcon: ({ color }) => <ProfileIcon color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ tabBarIcon: ({ color }) => <SettingsIcon color={color} /> }} />
     </Tabs>
   );
 }

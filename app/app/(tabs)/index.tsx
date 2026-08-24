@@ -23,6 +23,29 @@ const CARD_W = (W - PAD * 2 - 8) / 2;
 
 const CARD_BG = "#1E1E1E";
 
+const HERO_CARDS = [
+  {
+    text: "spongey is always proud of you",
+    image: require("../../assets/spongey-love.png"),
+    imgStyle: { position: "absolute" as const, bottom: -95, right: -105, width: 280, height: 280 },
+  },
+  {
+    text: "what came first, the chicken or the egg?",
+    image: require("../../assets/spongey-thinking.png"),
+    imgStyle: { position: "absolute" as const, bottom: -45, right: -10, width: 180, height: 180 },
+  },
+  {
+    text: "working hard or hardly working?",
+    image: require("../../assets/spongey-learning.png"),
+    imgStyle: { position: "absolute" as const, bottom: -60, right: -50, width: 230, height: 230 },
+  },
+  {
+    text: "Stay cool, folks.",
+    image: require("../../assets/spongey-wink.png"),
+    imgStyle: { position: "absolute" as const, bottom: -50, right: -25, width: 240, height: 240 },
+  },
+];
+
 const MOODS = [
   { label: "Focused", emoji: "🎯", bg: "#C8F0D8" },
   { label: "Angry",   emoji: "😠", bg: "#FFD4B0" },
@@ -57,8 +80,14 @@ export default function HomeScreen() {
   const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
   const [retention, setRetention] = useState<{ lapsed: number; avgReps: number; retentionRate: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [heroCard, setHeroCard] = useState(() => HERO_CARDS[Math.floor(Math.random() * HERO_CARDS.length)]);
+
+  const pickHeroCard = useCallback(() => {
+    setHeroCard(HERO_CARDS[Math.floor(Math.random() * HERO_CARDS.length)]);
+  }, []);
 
   const load = useCallback(async () => {
+    pickHeroCard();
     try {
       const [topicsRes, statsRes, heatmapRes, retentionRes] = await Promise.all([
         api.topics.list(),
@@ -87,11 +116,21 @@ export default function HomeScreen() {
   const retentionRate = Math.round(retention?.retentionRate ?? 0);
   const nextTopic = topics[0];
 
-  const last14 = heatmap.slice(-14).map((d) => d.count);
-  const hasActivity = last14.some((v) => v > 0);
-  const activityBars = hasActivity
-    ? Array(14).fill(0).map((_, i) => last14[i] ?? 0)
-    : [4, 7, 3, 9, 5, 8, 6, 4, 9, 5, 7, 6, 8, 5];
+  // Build a date-keyed map of real heatmap data
+  const heatmapByDate = Object.fromEntries(heatmap.map((d) => [d.date, d.count]));
+
+  // Sample data for the past 14 days (merged with real data where available)
+  const SAMPLE = [3, 7, 5, 12, 8, 15, 6, 9, 4, 11, 7, 13, 10, 5];
+  const activityBars = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    const key = d.toISOString().split("T")[0];
+    return heatmapByDate[key] ?? SAMPLE[i];
+  });
+
+  const todayKey = new Date().toISOString().split("T")[0];
+  const doneTodayReal = heatmapByDate[todayKey];
+  const doneToday = doneTodayReal !== undefined ? doneTodayReal : SAMPLE[13];
 
   const retentionBars = retentionRate > 0
     ? [20, 35, 28, 45, 40, 55, 50, 62, 58, 70, 65, 75, 72, retentionRate]
@@ -122,56 +161,27 @@ export default function HomeScreen() {
             resizeMode="cover"
             pointerEvents="none"
           />
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{(firstName[0] ?? "?").toUpperCase()}</Text>
-              </View>
-              <View>
-                <Text style={styles.welcomeLabel}>Welcome back</Text>
-                <Text style={styles.nameText}>{fullName}</Text>
-              </View>
-            </View>
-            <Pressable style={styles.menuBtn} onPress={() => router.push("/(tabs)/profile")}>
-              <Text style={styles.menuIcon}>≡</Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.dateText}>{today}</Text>
-          <Text style={styles.greeting}>Hello {firstName}! How are you feeling today?</Text>
-
-          {/* Mood chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.moodScroll}
-            contentContainerStyle={{ gap: 10, paddingRight: 20 }}
-          >
-            {MOODS.map((m) => (
-              <View key={m.label} style={styles.moodChip}>
-                <View style={[styles.moodEmojiBox, { backgroundColor: m.bg }]}>
-                  <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                </View>
-                <Text style={styles.moodLabel}>{m.label}</Text>
-              </View>
-            ))}
-          </ScrollView>
+          <Text style={styles.greeting}>{heroCard.text}</Text>
+          <Image
+            source={heroCard.image}
+            style={heroCard.imgStyle}
+            resizeMode="contain"
+            pointerEvents="none"
+          />
         </LinearGradient>
 
         {/* Stat cards */}
         <View style={styles.cardsRow}>
-          <View style={[styles.statCard, { backgroundColor: "#FFD4A0" }]}>
-            <Text style={styles.statCardTitle}>🃏  Cards Due</Text>
-            <MiniBar values={activityBars} barColor="#C96A0A" />
-            <Text style={styles.statBigNum}>{dueNow}</Text>
-            <Text style={styles.statBigUnit}>{dueNow === 1 ? "card" : "cards"}</Text>
+          <View style={[styles.statCard, { backgroundColor: "#cbe1c3" }]}>
+            <MiniBar values={activityBars} barColor="#519336" />
+            <Text style={[styles.statBigNum, { color: "#255312" }]}>{doneToday}</Text>
+            <Text style={[styles.statBigUnit, { color: "#255312" }]}>{doneToday === 1 ? "card today" : "cards today"}</Text>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: "#DDD0F5" }]}>
-            <Text style={styles.statCardTitle}>📈  Retention</Text>
-            <MiniBar values={retentionBars} barColor="#7C3AED" />
-            <Text style={styles.statBigNum}>{retentionRate}%</Text>
-            <Text style={styles.statBigUnit}>retention rate</Text>
+          <View style={[styles.statCard, { backgroundColor: "#cbc4e1" }]}>
+            <MiniBar values={retentionBars} barColor="#4d3aa3" />
+            <Text style={[styles.statBigNum, { color: "#1f2184" }]}>{retentionRate}%</Text>
+            <Text style={[styles.statBigUnit, { color: "#1f2184" }]}>retention rate</Text>
           </View>
         </View>
 
@@ -216,11 +226,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FFFFFF" },
   scroll: { paddingHorizontal: PAD, paddingBottom: 100, paddingTop: 8 },
 
+
   heroCard: {
     borderRadius: 24,
     padding: 20,
     marginBottom: 10,
     overflow: "hidden",
+    minHeight: 160,
   },
   headerRow: {
     flexDirection: "row",
@@ -269,7 +281,7 @@ const styles = StyleSheet.create({
   moodLabel: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)" },
 
   cardsRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  statCard: { width: CARD_W, borderRadius: 20, padding: 16, gap: 10 },
+  statCard: { width: CARD_W, borderRadius: 14, padding: 16, gap: 10 },
   statCardTitle: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "#333" },
   statBigNum: {
     fontFamily: "Figtree_700Bold",
@@ -287,7 +299,7 @@ const styles = StyleSheet.create({
 
   quizCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 14,
     padding: 18,
     gap: 8,
     borderWidth: 1.5,

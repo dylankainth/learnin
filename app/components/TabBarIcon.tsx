@@ -42,3 +42,23 @@ export function ProfileIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+export function ListIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 6h13M8 12h13M8 18h13" stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+      <Circle cx={4} cy={6} r={1.2} fill={color} />
+      <Circle cx={4} cy={12} r={1.2} fill={color} />
+      <Circle cx={4} cy={18} r={1.2} fill={color} />
+    </Svg>
+  );
+}
+
+export function SettingsIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={3} stroke={color} strokeWidth={2.2} />
+      <Path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+    </Svg>
+  );
+}

@@ -99,7 +99,8 @@ export const api = {
   progress: {
     heatmap: (days = 90) => request<{ heatmap: { date: string; count: number }[] }>(`/progress/heatmap?days=${days}`),
     retention: () =>
-      request<{ studied: number; mastered: number; lapsed: number; avgReps: number; retentionRate: number }>("/progress/retention"),
+      request<{ studied: number; lapsed: number; avgReps: number; retentionRate: number; total: number; correct: number }>("/progress/retention"),
+    seedSampleData: () => request<{ seeded: number }>("/progress/seed-sample-data", { method: "POST" }),
   },
   chat: {
     start: (documentId: string) =>
