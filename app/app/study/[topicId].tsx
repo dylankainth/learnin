@@ -12,7 +12,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
-import { VolumeManager } from "react-native-volume-manager";
+let VolumeManager: typeof import("react-native-volume-manager").VolumeManager | null = null;
+try {
+  VolumeManager = require("react-native-volume-manager").VolumeManager;
+} catch {
+  // not linked — volume scrolling unavailable (e.g. Expo Go)
+}
 import { colors } from "@/theme/colors";
 import { typography, radii, fonts } from "@/theme/typography";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
@@ -74,9 +79,9 @@ export default function TopicStudyScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-      VolumeManager.showNativeVolumeUI({ enabled: false });
-      VolumeManager.getVolume().then((v) => { lastVolume.current = v.volume; });
-      const sub = VolumeManager.addVolumeListener((result) => {
+      VolumeManager?.showNativeVolumeUI({ enabled: false });
+      VolumeManager?.getVolume().then((v) => { lastVolume.current = v.volume; });
+      const sub = VolumeManager?.addVolumeListener((result) => {
         const prev = lastVolume.current;
         lastVolume.current = result.volume;
         if (prev === null) return;
@@ -88,8 +93,8 @@ export default function TopicStudyScreen() {
       });
       return () => {
         if (pollRef.current) clearTimeout(pollRef.current);
-        sub.remove();
-        VolumeManager.showNativeVolumeUI({ enabled: true });
+        sub?.remove();
+        VolumeManager?.showNativeVolumeUI({ enabled: true });
       };
     }, [load, SCROLL_STEP]),
   );
