@@ -1,0 +1,48 @@
+diff --git a/node_modules/react-native-screens/lib/commonjs/native-stack/views/NativeStackView.js b/node_modules/react-native-screens/lib/commonjs/native-stack/views/NativeStackView.js
+index 0000001..0000002 100644
+--- a/node_modules/react-native-screens/lib/commonjs/native-stack/views/NativeStackView.js
++++ b/node_modules/react-native-screens/lib/commonjs/native-stack/views/NativeStackView.js
+@@ -152,10 +152,14 @@ function SceneView({
+   // We take backgroundColor from contentStyle and apply it on Screen.
+   // This allows to workaround one issue with truncated
+   // content with formSheet presentation.
++  // Also applied to all other presentations to prevent the native view's
++  // default white background from showing during swipe-back transitions.
+   let internalScreenStyle;
+-  if (stackPresentation === 'formSheet' && contentStyle) {
+-    const flattenContentStyles = _reactNative.StyleSheet.flatten(contentStyle);
+-    internalScreenStyle = {
+-      backgroundColor: flattenContentStyles?.backgroundColor
+-    };
++  if (contentStyle) {
++    const flattenContentStyles = _reactNative.StyleSheet.flatten(contentStyle);
++    if (flattenContentStyles?.backgroundColor) {
++      internalScreenStyle = {
++        backgroundColor: flattenContentStyles.backgroundColor
++      };
++    }
+   }
+diff --git a/node_modules/react-native-screens/lib/module/native-stack/views/NativeStackView.js b/node_modules/react-native-screens/lib/module/native-stack/views/NativeStackView.js
+index 0000003..0000004 100644
+--- a/node_modules/react-native-screens/lib/module/native-stack/views/NativeStackView.js
++++ b/node_modules/react-native-screens/lib/module/native-stack/views/NativeStackView.js
+@@ -147,10 +147,14 @@ function SceneView({
+   // We take backgroundColor from contentStyle and apply it on Screen.
+   // This allows to workaround one issue with truncated
+   // content with formSheet presentation.
++  // Also applied to all other presentations to prevent the native view's
++  // default white background from showing during swipe-back transitions.
+   let internalScreenStyle;
+-  if (stackPresentation === 'formSheet' && contentStyle) {
+-    const flattenContentStyles = StyleSheet.flatten(contentStyle);
+-    internalScreenStyle = {
+-      backgroundColor: flattenContentStyles?.backgroundColor
+-    };
++  if (contentStyle) {
++    const flattenContentStyles = StyleSheet.flatten(contentStyle);
++    if (flattenContentStyles?.backgroundColor) {
++      internalScreenStyle = {
++        backgroundColor: flattenContentStyles.backgroundColor
++      };
++    }
+   }
