@@ -7,20 +7,21 @@ import {
   Pressable,
   RefreshControl,
   Dimensions,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { Topic, ReviewStats } from "@/lib/types";
 
-const { width: W } = Dimensions.get("window");
-const PAD = 16;
-const CARD_W = (W - PAD * 2 - 10) / 2;
+const { width: W, height: H } = Dimensions.get("window");
+const PAD = 8;
+const CARD_W = (W - PAD * 2 - 8) / 2;
 
-const BG = "#111111";
-const CARD_BG = "#1E1E1E";
+const CARD_BG = "rgba(255,255,255,0.08)";
 
 const MOODS = [
   { label: "Focused", emoji: "🎯", bg: "#C8F0D8" },
@@ -102,7 +103,19 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
-      <StatusBar style="light" backgroundColor={BG} />
+      <StatusBar style="light" backgroundColor="transparent" />
+      <LinearGradient
+        colors={["#9EC2CE", "#07536C"]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Image
+        source={require("../../assets/noise.png")}
+        style={[StyleSheet.absoluteFill, { opacity: 0.05 }]}
+        resizeMode="cover"
+        pointerEvents="none"
+      />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#888" />}
@@ -201,7 +214,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root: { flex: 1, backgroundColor: "#07536C" },
   scroll: { paddingHorizontal: PAD, paddingBottom: 100, paddingTop: 8 },
 
   heroCard: {
@@ -248,7 +261,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  moodScroll: { marginHorizontal: -20, paddingLeft: 20 },
+  moodScroll: { marginHorizontal: -20, paddingLeft: 0 },
   moodChip: { alignItems: "center", gap: 6 },
   moodEmojiBox: {
     width: 58,
@@ -278,20 +291,20 @@ const styles = StyleSheet.create({
   },
 
   quizCard: {
-    backgroundColor: "#1C1C1C",
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 20,
     padding: 18,
     gap: 8,
   },
   quizCardHeader: { flexDirection: "row", justifyContent: "space-between" },
-  quizMeta: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "#888" },
+  quizMeta: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "rgba(255,255,255,0.6)" },
   quizQuestion: {
     fontFamily: "Figtree_700Bold",
     fontSize: 18,
     color: "#FFFFFF",
     lineHeight: 24,
   },
-  quizSub: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "#888" },
+  quizSub: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "rgba(255,255,255,0.6)" },
   quizBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
   btnDark: {
     flex: 1,
@@ -308,7 +321,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#333",
+    borderColor: "rgba(255,255,255,0.4)",
   },
   btnLightText: { fontFamily: "Figtree_600SemiBold", fontSize: 15, color: "#FFFFFF" },
 });

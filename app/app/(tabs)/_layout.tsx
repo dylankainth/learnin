@@ -3,7 +3,7 @@ import { Tabs } from "expo-router";
 import * as NavigationBar from "expo-navigation-bar";
 import { HomeIcon, ReviewIcon, ProfileIcon } from "@/components/TabBarIcon";
 
-const NAV_BG = "#111111";
+const NAV_BG = "#07536C";
 
 export default function TabsLayout() {
   useEffect(() => {
