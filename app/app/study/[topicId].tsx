@@ -1,7 +1,18 @@
-import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Modal,
+  FlatList,
+  Dimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { VolumeManager } from "react-native-volume-manager";
 import { colors } from "@/theme/colors";
 import { typography, radii, fonts } from "@/theme/typography";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
@@ -9,11 +20,40 @@ import { InlineQuiz } from "@/components/InlineQuiz";
 import { api } from "@/lib/api";
 import type { TopicBlock, TopicStudyDetail } from "@/lib/types";
 
+type TocEntry = { text: string; level: number; blockIndex: number };
+
+function extractHeadings(markdown: string): { level: number; text: string }[] {
+  const result: { level: number; text: string }[] = [];
+  for (const line of markdown.split("\n")) {
+    const m = line.match(/^(#{1,3})\s+(.+)/);
+    if (m) result.push({ level: m[1].length, text: m[2].trim() });
+  }
+  return result;
+}
+
+function buildToc(blocks: TopicBlock[]): TocEntry[] {
+  const entries: TocEntry[] = [];
+  blocks.forEach((block, i) => {
+    if (block.type === "explainer" && block.markdown) {
+      for (const h of extractHeadings(block.markdown)) {
+        entries.push({ ...h, blockIndex: i });
+      }
+    }
+  });
+  return entries;
+}
+
 export default function TopicStudyScreen() {
   const { topicId } = useLocalSearchParams<{ topicId: string }>();
   const [detail, setDetail] = useState<TopicStudyDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [contentsVisible, setContentsVisible] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const blockOffsets = useRef<number[]>([]);
+  const scrollY = useRef(0);
+  const lastVolume = useRef<number | null>(null);
+  const SCROLL_STEP = Dimensions.get("window").height * 0.8;
 
   const load = useCallback(async (silent = false) => {
     if (!topicId) return;
@@ -34,10 +74,24 @@ export default function TopicStudyScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      VolumeManager.showNativeVolumeUI({ enabled: false });
+      VolumeManager.getVolume().then((v) => { lastVolume.current = v.volume; });
+      const sub = VolumeManager.addVolumeListener((result) => {
+        const prev = lastVolume.current;
+        lastVolume.current = result.volume;
+        if (prev === null) return;
+        if (result.volume > prev) {
+          scrollRef.current?.scrollTo({ y: Math.max(0, scrollY.current - SCROLL_STEP), animated: true });
+        } else if (result.volume < prev) {
+          scrollRef.current?.scrollTo({ y: scrollY.current + SCROLL_STEP, animated: true });
+        }
+      });
       return () => {
         if (pollRef.current) clearTimeout(pollRef.current);
+        sub.remove();
+        VolumeManager.showNativeVolumeUI({ enabled: true });
       };
-    }, [load]),
+    }, [load, SCROLL_STEP]),
   );
 
   async function onLockBlock(blockId: string) {
@@ -55,6 +109,14 @@ export default function TopicStudyScreen() {
     }
   }
 
+  function scrollToBlock(blockIndex: number) {
+    setContentsVisible(false);
+    const y = blockOffsets.current[blockIndex] ?? 0;
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: true });
+    }, 50);
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -68,7 +130,7 @@ export default function TopicStudyScreen() {
   if (!detail || detail.blocks.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <Header title="Study" topicId={topicId ?? ""} />
+        <Header title="Study" onTitlePress={undefined} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 }}>
           {detail?.processingCount ? (
             <>
@@ -88,23 +150,45 @@ export default function TopicStudyScreen() {
     );
   }
 
+  const toc = buildToc(detail.blocks);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Header title={detail.topic.name} topicId={topicId ?? ""} />
+      <Header
+        title={detail.topic.name}
+        onTitlePress={toc.length > 0 ? () => setContentsVisible(true) : undefined}
+      />
 
       <ScrollView
+        ref={scrollRef}
+        style={{ backgroundColor: colors.bg }}
         contentContainerStyle={styles.page}
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
       >
         {detail.blocks.map((block, index) =>
           block.type === "explainer" ? (
-            <ExplainerItem
+            <View
               key={block.id}
-              block={block}
-              onLock={() => onLockBlock(block.id)}
-            />
+              onLayout={(e) => {
+                blockOffsets.current[index] = e.nativeEvent.layout.y;
+              }}
+            >
+              <ExplainerItem
+                block={block}
+                onLock={() => onLockBlock(block.id)}
+              />
+            </View>
           ) : (
-            <QuizItem key={block.id} block={block} />
+            <View
+              key={block.id}
+              onLayout={(e) => {
+                blockOffsets.current[index] = e.nativeEvent.layout.y;
+              }}
+            >
+              <QuizItem block={block} />
+            </View>
           ),
         )}
 
@@ -119,7 +203,61 @@ export default function TopicStudyScreen() {
 
         <View style={{ height: 60 }} />
       </ScrollView>
+
+      {toc.length > 0 && (
+        <ContentsModal
+          visible={contentsVisible}
+          entries={toc}
+          onClose={() => setContentsVisible(false)}
+          onSelect={scrollToBlock}
+        />
+      )}
     </SafeAreaView>
+  );
+}
+
+function ContentsModal({
+  visible,
+  entries,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  entries: TocEntry[];
+  onClose: () => void;
+  onSelect: (blockIndex: number) => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.tocBackdrop} onPress={onClose}>
+        <Pressable style={styles.tocPanel} onPress={() => {}}>
+          <Text style={styles.tocTitle}>Contents</Text>
+          <FlatList
+            data={entries}
+            keyExtractor={(_, i) => String(i)}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <Pressable
+                style={({ pressed }) => [styles.tocEntry, pressed && styles.tocEntryPressed]}
+                onPress={() => onSelect(item.blockIndex)}
+              >
+                <Text
+                  style={[
+                    styles.tocEntryText,
+                    item.level === 1 && styles.tocH1,
+                    item.level === 2 && styles.tocH2,
+                    item.level === 3 && styles.tocH3,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {item.text}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -153,16 +291,30 @@ function QuizItem({ block }: { block: TopicBlock }) {
   );
 }
 
-function Header({ title, topicId }: { title: string; topicId: string }) {
+function Header({
+  title,
+  onTitlePress,
+}: {
+  title: string;
+  onTitlePress?: () => void;
+}) {
   return (
     <View style={styles.header}>
-      <Pressable onPress={() => router.back()} hitSlop={12}>
-        <Text style={[typography.bodyMedium, { color: colors.primary }]}>← Back</Text>
+      <Pressable
+        style={{ flex: 1, alignItems: "center" }}
+        onPress={onTitlePress}
+        disabled={!onTitlePress}
+      >
+        <Text
+          style={[
+            typography.caption,
+            { textAlign: "center", color: colors.textMuted },
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
       </Pressable>
-      <Text style={[typography.caption, { flex: 1, textAlign: "center", color: colors.textMuted }]} numberOfLines={1}>
-        {title}
-      </Text>
-      <View style={{ width: 48 }} />
     </View>
   );
 }
@@ -204,5 +356,61 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 32,
+  },
+  tocBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-start",
+  },
+  tocPanel: {
+    backgroundColor: colors.bg,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    maxHeight: "65%",
+    paddingBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  tocTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    letterSpacing: 1,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tocEntry: {
+    paddingVertical: 11,
+    paddingHorizontal: 24,
+  },
+  tocEntryPressed: {
+    backgroundColor: colors.border,
+  },
+  tocEntryText: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 21,
+  },
+  tocH1: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+  },
+  tocH2: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    paddingLeft: 12,
+  },
+  tocH3: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
+    paddingLeft: 24,
   },
 });
