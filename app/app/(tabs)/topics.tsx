@@ -1,48 +1,56 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, router } from "expo-router";
-import { colors, accentFor } from "@/theme/colors";
-import { typography, radii } from "@/theme/typography";
+import { accentFor } from "@/theme/colors";
 import { BlobMascot } from "@/components/BlobMascot";
 import { api } from "@/lib/api";
 import type { Topic } from "@/lib/types";
 
+const PAD = 8;
+
 export default function TopicsScreen() {
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      api.topics.list().then((t) => setTopics(t.topics)).catch(() => {});
-    }, []),
-  );
+  const load = useCallback(() => {
+    api.topics.list().then((t) => setTopics(t.topics)).catch(() => {});
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function onRefresh() {
+    setRefreshing(true);
+    load();
+    setRefreshing(false);
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={typography.h1}>Topics</Text>
-        <Text style={[typography.body, { color: colors.textMuted, marginTop: 4 }]}>
-          All your topics in one place.
-        </Text>
-      </View>
-
+    <SafeAreaView style={styles.root} edges={["top"]}>
+      <StatusBar style="dark" backgroundColor="#FFFFFF" />
       <FlatList
         data={topics}
         keyExtractor={(t) => t.id}
         numColumns={2}
-        columnWrapperStyle={{ gap: 14 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 104, gap: 14 }}
+        columnWrapperStyle={{ gap: 10 }}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#888" />}
+        showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <Pressable style={styles.newCard} onPress={() => router.push("/create-topic")}>
-            <Text style={[typography.h2, { color: "#fff" }]}>+ New topic</Text>
-            <Text style={[typography.caption, { color: "rgba(255,255,255,0.7)" }]}>Upload a lecture or paste notes</Text>
-          </Pressable>
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={[typography.body, { color: colors.textMuted, textAlign: "center" }]}>
-              No topics yet — create one to get started.
-            </Text>
+          <View>
+            <Text style={styles.heading}>Topics</Text>
+            <Text style={styles.sub}>All your topics in one place.</Text>
+
+            <Pressable style={styles.newBtn} onPress={() => router.push("/create-topic")}>
+              <Text style={styles.newBtnText}>+ New topic</Text>
+            </Pressable>
+
+            {topics.length === 0 && (
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>No topics yet — create one to get started.</Text>
+              </View>
+            )}
           </View>
         }
         renderItem={({ item }) => {
@@ -52,11 +60,9 @@ export default function TopicsScreen() {
               style={[styles.tile, { backgroundColor: accent.bg }]}
               onPress={() => router.push(`/topic/${item.id}`)}
             >
-              <BlobMascot color={accent.fg} size={44} withFace={false} />
-              <Text style={[typography.bodyMedium, { marginTop: 10 }]} numberOfLines={2}>
-                {item.name}
-              </Text>
-              <Text style={[typography.caption, { color: accent.fg, marginTop: 2 }]}>
+              <BlobMascot color={accent.fg} size={40} withFace={false} />
+              <Text style={styles.tileName} numberOfLines={2}>{item.name}</Text>
+              <Text style={[styles.tileSub, { color: accent.fg }]}>
                 {item.content_count} items · {item.card_count} cards
               </Text>
             </Pressable>
@@ -68,19 +74,61 @@ export default function TopicsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
-  newCard: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.lg,
-    padding: 20,
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
+  scroll: { paddingHorizontal: PAD, paddingBottom: 100, paddingTop: 8, gap: 10 },
+
+  heading: {
+    fontFamily: "Figtree_700Bold",
+    fontSize: 32,
+    color: "#111111",
+    letterSpacing: -0.5,
     marginBottom: 4,
   },
-  empty: { paddingVertical: 30 },
+  sub: {
+    fontFamily: "Figtree_400Regular",
+    fontSize: 14,
+    color: "#78716C",
+    marginBottom: 14,
+  },
+
+  newBtn: {
+    backgroundColor: "#111111",
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  newBtnText: {
+    fontFamily: "Figtree_600SemiBold",
+    fontSize: 15,
+    color: "#FFFFFF",
+  },
+
+  empty: { paddingVertical: 24 },
+  emptyText: {
+    fontFamily: "Figtree_400Regular",
+    fontSize: 14,
+    color: "#78716C",
+    textAlign: "center",
+  },
+
   tile: {
     flex: 1,
-    borderRadius: radii.lg,
+    borderRadius: 14,
     padding: 16,
     minHeight: 130,
     justifyContent: "center",
+  },
+  tileName: {
+    fontFamily: "Figtree_600SemiBold",
+    fontSize: 14,
+    color: "#111111",
+    marginTop: 10,
+    lineHeight: 20,
+  },
+  tileSub: {
+    fontFamily: "Figtree_400Regular",
+    fontSize: 12,
+    marginTop: 2,
   },
 });

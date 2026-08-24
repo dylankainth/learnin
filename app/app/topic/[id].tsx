@@ -1,11 +1,12 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator, Linking, StatusBar } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, router, useLocalSearchParams } from "expo-router";
-import { colors } from "@/theme/colors";
-import { typography, radii } from "@/theme/typography";
 import { api } from "@/lib/api";
 import type { Topic, DocumentSummary } from "@/lib/types";
+
+const PAD = 20;
 
 export default function TopicDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,24 +21,12 @@ export default function TopicDetailScreen() {
       const res = await api.topics.get(id);
       setTopic(res.topic);
       setContents(res.contents);
-    } catch (err) {
-      console.error("Failed to load topic:", err);
-      setTopic({
-        id,
-        name: "Loading...",
-        created_at: new Date().toISOString(),
-        content_count: 0,
-        card_count: 0,
-        due_count: 0,
-      });
+    } catch {
+      setTopic({ id, name: "Loading...", created_at: new Date().toISOString(), content_count: 0, card_count: 0, due_count: 0 });
     }
   }, [id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load().catch(() => {});
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
   async function onRefresh() {
     setRefreshing(true);
@@ -47,9 +36,9 @@ export default function TopicDetailScreen() {
 
   if (!topic) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+      <SafeAreaView style={styles.root} edges={["top"]}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color="#111111" />
         </View>
       </SafeAreaView>
     );
@@ -59,131 +48,101 @@ export default function TopicDetailScreen() {
   const processingCount = contents.filter((c) => c.status === "pending" || c.status === "processing").length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
-      <StatusBar backgroundColor={colors.bg} barStyle="dark-content" />
+    <SafeAreaView style={styles.root} edges={["top"]}>
+      <StatusBar style="dark" backgroundColor="#FFFFFF" />
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#888" />}
+        showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={[typography.body, { color: colors.primary }]}>← Back</Text>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>← Back</Text>
         </Pressable>
 
-        {/* Header */}
-        <View style={{ marginTop: 4, marginBottom: 24 }}>
-          <Text style={typography.h1}>{topic.name}</Text>
-          {topic.description ? (
-            <Text style={[typography.body, { color: colors.textMuted, marginTop: 6 }]}>{topic.description}</Text>
-          ) : null}
-        </View>
+        <Text style={styles.heading}>{topic.name}</Text>
+        {topic.description ? <Text style={styles.description}>{topic.description}</Text> : null}
 
-        {/* Stats row */}
+        {/* Stat pills */}
         <View style={styles.statsRow}>
-          <StatPill label="Items" value={topic.content_count} />
-          <StatPill label="Cards" value={topic.card_count} />
-          <StatPill label="Due" value={topic.due_count} accent={topic.due_count > 0} />
+          <StatPill label="Items" value={topic.content_count} bg="#cbe1c3" fg="#255312" />
+          <StatPill label="Cards" value={topic.card_count} bg="#cbc4e1" fg="#1f2184" />
+          <StatPill label="Due" value={topic.due_count} bg="#ce9eaa" fg="#420000" />
         </View>
 
-        {/* Study Now button */}
+        {/* Primary action */}
         {hasContent && (
-          <Pressable
-            style={styles.studyBtn}
-            onPress={() => router.push({ pathname: "/study/[topicId]", params: { topicId: topic.id } })}
-          >
-            <Text style={[typography.button, { color: "#fff", fontSize: 18 }]}>Study Now</Text>
+          <Pressable style={styles.btnDark} onPress={() => router.push({ pathname: "/study/[topicId]", params: { topicId: topic.id } })}>
+            <Text style={styles.btnDarkText}>Study Now</Text>
           </Pressable>
         )}
 
-        {/* Review due cards */}
+        {/* Review due */}
         {topic.due_count > 0 && (
-          <Pressable
-            style={styles.reviewCta}
-            onPress={() => router.push({ pathname: "/review/session", params: { topicId: topic.id } })}
-          >
-            <Text style={[typography.button, { color: colors.primary }]}>
-              Review {topic.due_count} due card{topic.due_count !== 1 ? "s" : ""}
-            </Text>
+          <Pressable style={styles.btnLight} onPress={() => router.push({ pathname: "/review/session", params: { topicId: topic.id } })}>
+            <Text style={styles.btnLightText}>Review {topic.due_count} due card{topic.due_count !== 1 ? "s" : ""}</Text>
           </Pressable>
         )}
 
-        {/* Processing indicator */}
+        {/* Processing banner */}
         {processingCount > 0 && (
           <View style={styles.processingBanner}>
-            <ActivityIndicator color={colors.primary} size="small" />
-            <Text style={[typography.caption, { color: colors.textMuted, marginLeft: 8 }]}>
+            <ActivityIndicator size="small" color="#78716C" />
+            <Text style={styles.processingText}>
               {processingCount} resource{processingCount !== 1 ? "s" : ""} still processing…
             </Text>
           </View>
         )}
 
-        {/* Content list */}
-        <View style={{ marginTop: 24 }}>
-          <View style={styles.sectionHeader}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>RESOURCES</Text>
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/upload",
-                  params: { topicId: topic.id, hasContent: hasContent ? "true" : "false" },
-                })
-              }
-            >
-              <Text style={[typography.caption, { color: colors.primary }]}>+ Add</Text>
-            </Pressable>
-          </View>
-
-          {contents.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={[typography.body, { color: colors.textMuted, textAlign: "center" }]}>
-                No content yet. Add a PDF or video to start studying.
-              </Text>
-            </View>
-          ) : (
-            contents.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [styles.contentRow, pressed && { opacity: 0.7 }]}
-                onPress={async () => {
-                  if (item.source_type === "pdf") {
-                    if (openingPdf.current.has(item.id)) return;
-                    openingPdf.current.add(item.id);
-                    try {
-                      const url = item.file_url ?? (await api.documents.get(item.id)).document.fileUrl;
-                      if (url) await Linking.openURL(url);
-                      else router.push({ pathname: "/document/[id]", params: { id: item.id } });
-                    } catch {
-                      router.push({ pathname: "/document/[id]", params: { id: item.id } });
-                    } finally {
-                      openingPdf.current.delete(item.id);
-                    }
-                  } else {
-                    router.push({ pathname: "/document/[id]", params: { id: item.id } });
-                  }
-                }}
-              >
-                <View style={[styles.statusDot, { backgroundColor: statusColor(item.status) }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={typography.bodyMedium} numberOfLines={1}>{item.title}</Text>
-                  <Text style={[typography.caption, { color: colors.textMuted }]}>
-                    {statusLabel(item.status)} • {item.card_count} cards
-                  </Text>
-                </View>
-                <Text style={[typography.caption, { color: colors.textMuted }]}>›</Text>
-              </Pressable>
-            ))
-          )}
+        {/* Resources */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>RESOURCES</Text>
+          <Pressable onPress={() => router.push({ pathname: "/upload", params: { topicId: topic.id, hasContent: hasContent ? "true" : "false" } })}>
+            <Text style={styles.sectionAction}>+ Add</Text>
+          </Pressable>
         </View>
+
+        {contents.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No content yet. Add a PDF or video to start studying.</Text>
+          </View>
+        ) : (
+          contents.map((item) => (
+            <Pressable
+              key={item.id}
+              style={({ pressed }) => [styles.contentRow, pressed && { opacity: 0.7 }]}
+              onPress={async () => {
+                if (item.source_type === "pdf") {
+                  if (openingPdf.current.has(item.id)) return;
+                  openingPdf.current.add(item.id);
+                  try {
+                    const url = item.file_url ?? (await api.documents.get(item.id)).document.fileUrl;
+                    if (url) await Linking.openURL(url);
+                    else router.push({ pathname: "/document/[id]", params: { id: item.id } });
+                  } catch {
+                    router.push({ pathname: "/document/[id]", params: { id: item.id } });
+                  } finally {
+                    openingPdf.current.delete(item.id);
+                  }
+                } else {
+                  router.push({ pathname: "/document/[id]", params: { id: item.id } });
+                }
+              }}
+            >
+              <View style={[styles.statusDot, { backgroundColor: statusColor(item.status) }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.contentTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.contentSub}>{statusLabel(item.status)} · {item.card_count} cards</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          ))
+        )}
       </ScrollView>
 
       {/* FAB */}
       <Pressable
         style={styles.fab}
-        onPress={() =>
-          router.push({
-            pathname: "/upload",
-            params: { topicId: topic.id, hasContent: hasContent ? "true" : "false" },
-          })
-        }
+        onPress={() => router.push({ pathname: "/upload", params: { topicId: topic.id, hasContent: hasContent ? "true" : "false" } })}
       >
         <Text style={styles.fabText}>+</Text>
       </Pressable>
@@ -191,19 +150,19 @@ export default function TopicDetailScreen() {
   );
 }
 
-function StatPill({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+function StatPill({ label, value, bg, fg }: { label: string; value: number; bg: string; fg: string }) {
   return (
-    <View style={[styles.statPill, accent && { backgroundColor: colors.primaryLight }]}>
-      <Text style={[typography.h2, { color: accent ? colors.primary : colors.text }]}>{value}</Text>
-      <Text style={[typography.caption, { color: colors.textMuted }]}>{label}</Text>
+    <View style={[styles.statPill, { backgroundColor: bg }]}>
+      <Text style={[styles.statNum, { color: fg }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: fg }]}>{label}</Text>
     </View>
   );
 }
 
 function statusColor(status: DocumentSummary["status"]) {
-  if (status === "ready") return colors.success;
-  if (status === "error") return colors.danger;
-  return colors.orange;
+  if (status === "ready") return "#519336";
+  if (status === "error") return "#DC2626";
+  return "#F59E0B";
 }
 
 function statusLabel(status: DocumentSummary["status"]) {
@@ -214,55 +173,102 @@ function statusLabel(status: DocumentSummary["status"]) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 20, paddingBottom: 100, paddingTop: 8 },
-  backButton: { paddingVertical: 8 },
-  statsRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
+  scroll: { paddingHorizontal: PAD, paddingBottom: 120, paddingTop: 8 },
+
+  backBtn: { paddingVertical: 8, marginBottom: 4 },
+  backText: { fontFamily: "Figtree_500Medium", fontSize: 14, color: "#78716C" },
+
+  heading: {
+    fontFamily: "Figtree_700Bold",
+    fontSize: 32,
+    color: "#111111",
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  description: {
+    fontFamily: "Figtree_400Regular",
+    fontSize: 14,
+    color: "#78716C",
+    marginBottom: 20,
+  },
+
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 20, marginTop: 8 },
   statPill: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     gap: 2,
   },
-  studyBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.pill,
-    paddingVertical: 18,
-    alignItems: "center",
-    marginBottom: 12,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+  statNum: {
+    fontFamily: "Figtree_700Bold",
+    fontSize: 24,
+    letterSpacing: -0.5,
   },
-  reviewCta: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radii.pill,
+  statLabel: {
+    fontFamily: "Figtree_400Regular",
+    fontSize: 12,
+  },
+
+  btnDark: {
+    backgroundColor: "#111111",
+    borderRadius: 999,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  btnDarkText: { fontFamily: "Figtree_600SemiBold", fontSize: 16, color: "#FFFFFF" },
+
+  btnLight: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 999,
     paddingVertical: 14,
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "#E5E1D8",
   },
+  btnLightText: { fontFamily: "Figtree_600SemiBold", fontSize: 15, color: "#111111" },
+
   processingBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md,
+    gap: 8,
+    backgroundColor: "#F5F4F0",
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 4,
+    marginBottom: 10,
   },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  processingText: { fontFamily: "Figtree_400Regular", fontSize: 13, color: "#78716C" },
+
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  sectionLabel: { fontFamily: "Figtree_500Medium", fontSize: 11, color: "#78716C", letterSpacing: 0.8 },
+  sectionAction: { fontFamily: "Figtree_600SemiBold", fontSize: 13, color: "#111111" },
+
   contentRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    backgroundColor: "#F5F4F0",
+    borderRadius: 14,
     padding: 14,
     marginBottom: 8,
   },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  empty: { paddingTop: 24, paddingHorizontal: 16, alignItems: "center" },
+  contentTitle: { fontFamily: "Figtree_500Medium", fontSize: 14, color: "#111111" },
+  contentSub: { fontFamily: "Figtree_400Regular", fontSize: 12, color: "#78716C", marginTop: 2 },
+  chevron: { fontFamily: "Figtree_400Regular", fontSize: 18, color: "#78716C" },
+
+  empty: { paddingTop: 24, alignItems: "center" },
+  emptyText: { fontFamily: "Figtree_400Regular", fontSize: 14, color: "#78716C", textAlign: "center" },
+
   fab: {
     position: "absolute",
     bottom: 30,
@@ -270,13 +276,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: "#111111",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: colors.primary,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
-  fabText: { fontSize: 28, color: "#fff", fontWeight: "600" },
+  fabText: { fontFamily: "Figtree_600SemiBold", fontSize: 28, color: "#FFFFFF", lineHeight: 34 },
 });
