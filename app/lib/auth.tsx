@@ -34,11 +34,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setUser(record ? toUser(record) : null);
     }, true);
 
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("auth_timeout")), 5000)
+    );
+
     initAuthStore()
       .then(async () => {
         if (pb.authStore.isValid) {
           try {
-            await pb.collection("users").authRefresh();
+            await Promise.race([pb.collection("users").authRefresh(), timeout]);
           } catch {
             pb.authStore.clear();
           }

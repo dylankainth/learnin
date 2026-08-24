@@ -17,6 +17,6 @@ export const env = {
   openRouterApiKey: process.env.OPENROUTER_API_KEY,
   openRouterModel: process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",
   openRouterSiteUrl: process.env.OPENROUTER_SITE_URL ?? "https://github.com/dylankainth/learnin",
-  openRouterAppName: process.env.OPENROUTER_APP_NAME ?? "Learnin",
+  openRouterAppName: process.env.OPENROUTER_APP_NAME ?? "Sea Sponge",
   whisperApiUrl: process.env.WHISPER_API_URL,
 };

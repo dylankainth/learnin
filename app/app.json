@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Learnin",
-    "slug": "learnin",
-    "scheme": "learnin",
+    "name": "Sea Sponge",
+    "slug": "sea-sponge",
+    "scheme": "seasponge",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "android": {
-      "package": "com.learnin.app",
+      "package": "com.seasponge.app",
       "permissions": [
         "NOTIFICATIONS"
       ]

@@ -21,7 +21,7 @@ async function main() {
 
   // Root endpoint (fallback if no static file matches)
   app.get("/", (_req, res) => res.json({
-    app: "learnin",
+    app: "sea-sponge",
     status: "running",
     version: "0.1.0"
   }));

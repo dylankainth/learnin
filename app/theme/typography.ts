@@ -1,7 +1,8 @@
 export const fonts = {
-  regular: "DMSans_400Regular",
-  medium: "DMSans_500Medium",
-  bold: "DMSans_700Bold",
+  regular: "Figtree_400Regular",
+  medium: "Figtree_500Medium",
+  semibold: "Figtree_600SemiBold",
+  bold: "Figtree_700Bold",
 } as const;
 
 export const serifFonts = {

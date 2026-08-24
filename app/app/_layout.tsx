@@ -1,28 +1,48 @@
 import React, { useCallback, useEffect } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import {
   useFonts,
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_700Bold,
-} from "@expo-google-fonts/dm-sans";
+  Figtree_400Regular,
+  Figtree_500Medium,
+  Figtree_600SemiBold,
+  Figtree_700Bold,
+} from "@expo-google-fonts/figtree";
+import { CalSans_400Regular } from "@expo-google-fonts/cal-sans";
 import {
   SourceSerif4_400Regular,
   SourceSerif4_400Regular_Italic,
   SourceSerif4_700Bold,
 } from "@expo-google-fonts/source-serif-4";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import { colors } from "@/theme/colors";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+function AuthGuard() {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    const inTabs = segments[0] === "(tabs)";
+    if (!user && inTabs) {
+      router.replace("/(onboarding)");
+    }
+  }, [user, loading, segments]);
+
+  return null;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_700Bold,
+    Figtree_400Regular,
+    Figtree_500Medium,
+    Figtree_600SemiBold,
+    Figtree_700Bold,
+    CalSans_400Regular,
     SourceSerif4_400Regular,
     SourceSerif4_400Regular_Italic,
     SourceSerif4_700Bold,
@@ -38,11 +58,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="dark" />
+      <AuthGuard />
+      <StatusBar style="dark" backgroundColor={colors.bg} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
+          contentStyle: { backgroundColor: "transparent" },
           animation: "slide_from_right",
           gestureEnabled: true,
           animationMatchesGesture: true,

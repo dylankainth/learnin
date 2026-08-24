@@ -32,7 +32,7 @@ export default function ProfileScreen() {
     if (enabled) {
       const granted = await registerForPushNotifications().catch(() => false);
       if (!granted) {
-        Alert.alert("Notifications disabled", "Enable notifications for Learnin in your device settings to get review reminders.");
+        Alert.alert("Notifications disabled", "Enable notifications for Sea Sponge in your device settings to get review reminders.");
       }
     }
     await api.notifications.updatePrefs({ enabled }).catch(() => {});

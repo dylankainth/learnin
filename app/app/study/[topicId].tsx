@@ -10,6 +10,7 @@ import {
   FlatList,
   Dimensions,
 } from "react-native";
+import { StatusBar, setStatusBarBackgroundColor, setStatusBarStyle } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 let VolumeManager: typeof import("react-native-volume-manager").VolumeManager | null = null;
@@ -18,6 +19,7 @@ try {
 } catch {
   // not linked — volume scrolling unavailable (e.g. Expo Go)
 }
+import * as NavigationBar from "expo-navigation-bar";
 import { colors } from "@/theme/colors";
 import { typography, fonts } from "@/theme/typography";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
@@ -92,6 +94,20 @@ export default function TopicStudyScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      NavigationBar.setBackgroundColorAsync(colors.surface);
+      NavigationBar.setButtonStyleAsync("dark");
+      setStatusBarBackgroundColor("transparent", false);
+      setStatusBarStyle("dark");
+      return () => {
+        NavigationBar.setBackgroundColorAsync(colors.bg);
+        NavigationBar.setButtonStyleAsync("dark");
+        setStatusBarBackgroundColor(colors.bg, false);
+      };
+    }, []),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
       load();
       VolumeManager?.showNativeVolumeUI({ enabled: false });
       VolumeManager?.getVolume().then((v) => { lastVolume.current = v.volume; });
@@ -138,7 +154,7 @@ export default function TopicStudyScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.surface }}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -148,7 +164,7 @@ export default function TopicStudyScreen() {
 
   if (!detail || detail.blocks.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.surface }}>
         <Header title="Study" onTitlePress={undefined} />
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 }}>
           {detail?.processingCount ? (
@@ -172,7 +188,8 @@ export default function TopicStudyScreen() {
   const toc = buildToc(detail.blocks);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.surface }}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <Header
         title={detail.topic.name}
         onTitlePress={toc.length > 0 ? () => setContentsVisible(true) : undefined}
@@ -372,8 +389,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   page: {
     paddingHorizontal: 24,
@@ -402,16 +420,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderTopWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
   },
   progressText: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 11,
     color: colors.textMuted,
+    opacity: 0.7,
   },
   processingFooter: {
     flexDirection: "row",

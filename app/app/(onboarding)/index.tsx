@@ -1,77 +1,58 @@
-import React, { useRef, useState } from "react";
-import { View, Text, StyleSheet, Dimensions, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, Pressable, StyleSheet, Dimensions, Image } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import { BlobCluster } from "@/components/BlobCluster";
-import { ProgressDots } from "@/components/ProgressDots";
-import { Button } from "@/components/Button";
-import { colors } from "@/theme/colors";
-import { typography } from "@/theme/typography";
+import { SvgXml } from "react-native-svg";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const CARD_H_PADDING = 20;
+const CARD_WIDTH = SCREEN_WIDTH - CARD_H_PADDING * 2;
+const CARD_HEIGHT = SCREEN_HEIGHT * 0.62;
+const LEAVES_HEIGHT = 260;
+const LEAVES_OVERLAP = 80; // how much leaves overlap the card bottom
 
-const SLIDES = [
-  {
-    title: "Learnin",
-    subtitle: "Turn any lecture into something you'll actually remember.",
-  },
-  {
-    title: "Upload a PDF or a recording",
-    subtitle: "We turn it into a long, readable explainer with quick quizzes woven right in as you scroll.",
-  },
-  {
-    title: "Never forget it again",
-    subtitle: "Spaced-repetition reviews and reminders bring the right cards back exactly when you're about to forget them.",
-  },
-];
+const leavesSvg = `<svg width="411" height="377" viewBox="0 0 411 377" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M216.082 349.169C216.045 349.136 216.008 349.104 215.972 349.073C192.18 312.006 177.607 296.034 144.845 278.886C138.889 275.767 132.329 272.694 129.129 266.982C122.956 255.955 132.602 241.816 128.001 230.112C123.051 217.523 105.362 215.092 95.3341 205.633C93.2631 203.679 91.4754 201.314 90.9112 198.59C89.6925 192.699 94.1935 187.656 97.8007 182.467C101.681 180.509 107.247 176.669 111.211 169.547C115.407 162.014 106.957 154.347 100.087 149.682C98.5749 145.107 96.6846 140.588 94.8505 136.28C89.9245 124.709 85.4504 112.961 81.4354 101.071C74.7804 81.3503 69.3879 60.0733 75.2517 40.1244C76.4924 35.9053 78.5853 31.4373 82.764 29.6068C89.0551 26.8553 96.0252 31.4164 101.283 35.7029C115.915 47.6323 131.474 61.0664 134.705 79.15C136.468 89.0187 134.571 100.078 136.444 109.61C135.968 115.638 136.358 123.955 140.229 131.912C145.976 143.718 147.229 119.504 147.5 108.912C148.338 107.779 149.454 106.998 151.095 106.835C156.424 106.304 158.228 113.41 157.977 118.506C156.441 149.886 158.028 173.64 156.675 204.572C156.038 205.161 150.567 214.501 158.653 227.821C166.737 241.135 172.054 212.948 172.093 212.731C172.253 212.466 172.406 212.203 172.552 211.94C174.818 207.849 177.268 206.458 179.942 207.184C185.486 208.694 187.594 218.099 188.199 223.563C189.87 238.646 189.328 253.906 191.313 268.957C193.277 283.851 199.436 291.724 207.146 301.314C208.651 320.426 211.642 337.665 216.082 349.169ZM198.672 300.64C198.672 300.64 187.552 284.112 169.25 262.821C151.151 241.767 135.553 214.004 128.106 154.82C120.662 95.6381 107.538 78.2011 104.676 72.2003C103.235 69.1837 101.276 68.0975 100.302 69.3209C98.3502 64.4134 94.1936 55.2355 89.6388 53.0004C83.3379 49.9093 100.138 91.7283 106.248 114.275C112.356 136.82 117.893 157.366 117.321 170.456C116.884 180.451 123.896 183.651 126.05 176.278C133.667 208.294 147.873 250.366 162.473 267.187C180.228 287.64 203.776 311.278 198.672 300.64Z" fill="#31857C"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M386.481 239.628C387.909 251.996 400.465 259.1 398.364 279.879C395.199 311.227 364.999 311.008 336.576 313.553C308.154 316.097 289.769 327.103 267.786 356.856C248.539 382.91 235.337 374.607 232.35 372.141C232.081 372.019 231.795 371.862 231.493 371.671C229.016 372.976 203.388 385.378 166.583 361.4C147.087 348.697 142.403 346.638 122.665 334.278C107.894 325.026 90.0052 321.73 73.5764 315.509C57.1476 309.287 40.6992 298.321 36.9016 281.877C33.2016 265.854 37.0774 241.465 37.6636 220.853C44.0499 213.434 49.9064 199.178 42.8923 190.215C36.0956 181.527 28.9448 179.02 23.1226 176.676C13.2047 165.021 1.40395 154.171 0.0534025 139.62C-0.054055 138.457 -0.0613831 137.197 0.639533 136.241C2.07067 134.296 5.20404 134.889 7.54124 135.717C20.1895 140.195 32.5715 145.356 44.6092 151.168C58.0365 157.653 71.8228 165.751 78.0505 178.806C81.1912 185.393 82.1217 192.708 83.0131 199.89C84.13 208.885 85.2469 217.88 86.3638 226.875C84.3661 239.579 82.1656 261.735 90.0198 266.912C96.5357 271.21 103.437 266.601 108.06 262.019C110.669 262.202 113.226 262.514 115.475 263.728C121.031 266.728 122.235 273.657 123.742 279.57C127.667 294.948 137.765 308.822 151.51 317.721C164.937 326.412 181.1 330.211 195.939 336.486C202.662 339.328 209.796 343.726 215.972 349.073C216.008 349.104 216.045 349.136 216.082 349.169C211.642 337.665 208.651 320.426 207.146 301.314C204.33 265.584 206.702 223.319 214.502 199.79C227.46 160.713 192.371 163.011 176.748 152.545C161.127 142.076 167.406 127.026 184.299 129.449C187.542 129.914 190.468 130.4 193.074 130.812C191.208 130.519 189.189 130.189 186.991 129.851C187.015 129.882 204.113 146.814 214.878 138.639C225.651 130.459 204.594 102.385 204.584 102.376C205.993 111.607 207.175 119.046 207.798 123.069C205.634 109.077 196.684 53.8028 195.148 25.5645C193.528 -4.16235 218.107 -5.05083 218.515 8.11123C218.634 11.9884 218.903 18.2171 219.421 24.4202C219.389 24.5272 212.607 48.2137 220.608 62.3643C228.618 76.5358 232.406 33.9818 233.095 24.4365C242.356 4.95968 256.892 -5.26713 250.867 24.9319C243.748 60.6269 240.78 133.338 258.057 172.633C275.333 211.931 248.014 256.769 234.333 291.324C228.362 306.41 228.081 323.072 229.661 337.065C230.828 347.401 233.007 356.26 234.66 361.963C241.388 341.64 249.201 328.006 257.688 318.465C274.241 299.863 293.364 296.83 312.042 290.169C319.215 287.612 324.707 284.096 328.876 279.946C336.132 279.3 344.934 276.876 347.185 269.187C349.637 260.805 344.931 256.46 340.276 254.09C340.276 254.091 340.276 254.092 340.276 254.092C341.004 246.549 340.271 238.844 338.967 231.831C335.096 211.01 351.449 203.525 376.836 182.888C402.221 162.251 394.418 99.0315 400.895 125.344C407.374 151.654 421.319 180.039 396.328 214.176C395.004 215.983 393.844 217.688 392.818 219.313C389.204 219.092 384.309 219.827 380.595 224.277C375.859 229.945 381.284 235.792 386.481 239.628ZM215.701 360.461C215.701 360.461 173.973 354.904 145.575 328.459C119.414 304.096 110.066 297.914 87.1551 281.549C64.2447 265.186 74.9367 229.184 67.6833 204.093C60.4275 179.002 51.2643 171.366 44.7728 168.093C44.3455 167.877 44.0329 167.768 43.8131 167.744C40.5283 165.135 38.4719 164.742 38.4719 164.742C28.5443 165.574 43.8179 183.367 50.3094 198.095C56.8008 212.822 49.9259 220.821 49.3544 247.003C48.7805 273.185 52.0262 282.823 68.2548 294.276C78.0798 301.212 84.2586 299.479 86.2099 295.744C102.297 305.026 121.896 312.653 141.949 333.004C167.792 359.235 210.487 366.096 215.701 360.461ZM228.418 246.072C241.418 192.617 249.052 200.253 239.125 151.889C229.197 103.525 228.398 82.797 228.418 74.0703C228.43 66.8183 222.754 66.3531 222.1 74.9565C221.401 72.4678 219.394 67.5858 214.878 70.6374C208.961 74.6378 220.393 115.729 222.408 127.002C224.425 138.276 229.771 174.457 226.144 192.457C222.957 208.268 226.105 217.581 229.375 218.216C229.072 219.286 228.757 220.348 228.418 221.39C208.58 282.095 218.341 339.607 222.408 328.982C226.716 317.732 215.418 299.528 228.418 246.072ZM370.858 231.392C371.622 217.597 386.512 210.275 396.44 192.306C406.368 174.336 401.022 150.275 399.114 166.161C397.395 161.681 393.578 166.161 393.578 166.161C393.578 166.161 388.232 183.73 381.55 194.003C374.868 204.277 358.065 211.55 353.674 221.73C349.283 231.913 350.812 268.64 355.968 270.822C356.883 271.21 357.758 271.089 358.576 270.545C358.195 272.122 357.721 273.727 357.111 275.367C348.331 299.004 323.891 294.641 289.527 314.641C255.163 334.641 249.052 357.186 249.052 357.186C245.692 364.691 252.825 356.095 261.654 344.459C270.483 332.823 291.437 317.369 321.183 307.913C350.929 298.458 359.453 292.094 369.331 278.276C379.208 264.458 370.093 245.186 370.858 231.392Z" fill="#4DA69A"/>
+<path d="M232.97 24.6923C233.012 24.607 233.054 24.5217 233.095 24.4365C233.095 24.4303 233.095 24.424 233.095 24.4178C233.054 24.5093 233.012 24.6008 232.97 24.6923Z" fill="#4DA69A"/>
+<path d="M61.5728 209.912C57.2477 185.963 40.6821 167.414 43.813 167.744C40.5282 165.135 38.4719 164.742 38.4719 164.742C28.5443 165.574 43.8179 183.367 50.3093 198.095C56.8007 212.822 49.9259 220.821 49.3544 247.003C48.7805 273.185 52.0262 282.823 68.2547 294.276C78.0798 301.212 84.2586 299.479 86.2099 295.744C82.6516 293.69 79.2642 291.557 76.082 289.187C58.5176 276.095 64.1689 224.288 61.5728 209.912Z" fill="#86CBB9"/>
+<path d="M87.1551 281.549C64.2446 265.186 74.9366 229.184 67.6833 204.093C60.4274 179.002 51.2642 171.366 44.7728 168.093C44.3454 167.877 44.0328 167.768 43.813 167.744C40.6821 167.414 57.2477 185.963 61.5728 209.912C64.1689 224.288 58.5176 276.095 76.082 289.187C79.2643 291.557 82.6516 293.69 86.2099 295.744C102.297 305.026 121.896 312.653 141.949 333.004C167.792 359.235 210.487 366.096 215.701 360.461C215.701 360.461 173.973 354.904 145.575 328.459C119.414 304.096 110.066 297.914 87.1551 281.549Z" fill="#31857C"/>
+<path d="M198.672 300.64C198.672 300.64 187.552 284.112 169.25 262.821C151.151 241.767 135.553 214.003 128.106 154.82C120.662 95.6381 107.538 78.2011 104.676 72.2004C103.235 69.1837 101.276 68.0975 100.302 69.3209C99.3418 70.5304 99.3418 73.9936 101.76 80.092C106.629 92.3656 116.652 125.639 122.093 157.276C123.061 162.897 124.404 169.359 126.05 176.278C133.667 208.293 147.874 250.366 162.473 267.187C180.228 287.64 203.776 311.278 198.672 300.64Z" fill="#1B5852"/>
+<path d="M239.124 151.889C229.197 103.525 228.398 82.797 228.418 74.0703C228.43 66.8183 222.754 66.3531 222.1 74.9565C221.965 76.7055 222.036 78.8221 222.408 81.3433C224.615 96.2521 230.03 144.979 232.096 156.615C234.067 167.724 235.737 195.769 229.375 218.216C229.072 219.286 228.757 220.348 228.418 221.39C208.58 282.095 218.341 339.607 222.408 328.982C226.716 317.732 215.418 299.528 228.418 246.072C241.418 192.617 249.052 200.253 239.124 151.889Z" fill="#31857C"/>
+<path d="M399.114 166.161C397.204 182.046 388.278 197.004 367.995 216.457C350.009 233.708 363.668 249.403 358.576 270.545C358.195 272.122 357.721 273.727 357.111 275.367C348.331 299.004 323.891 294.641 289.527 314.641C255.163 334.641 249.052 357.186 249.052 357.186C245.692 364.691 252.825 356.095 261.654 344.459C270.483 332.822 291.437 317.369 321.183 307.913C350.929 298.458 359.453 292.094 369.331 278.276C379.208 264.458 370.093 245.186 370.858 231.392C371.622 217.597 386.512 210.275 396.44 192.306C406.368 174.334 401.022 150.275 399.114 166.161Z" fill="#31857C"/>
+</svg>`;
 
-export default function OnboardingSlides() {
-  const scrollRef = useRef<ScrollView>(null);
-  const [index, setIndex] = useState(0);
-
-  function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    const next = Math.round(e.nativeEvent.contentOffset.x / width);
-    setIndex(next);
-  }
-
-  function goNext() {
-    if (index < SLIDES.length - 1) {
-      scrollRef.current?.scrollTo({ x: width * (index + 1), animated: true });
-    } else {
-      router.push("/(auth)/signup");
-    }
-  }
+export default function OnboardingScreen() {
+  useEffect(() => {
+    NavigationBar.setBackgroundColorAsync("#07536C");
+    NavigationBar.setButtonStyleAsync("light");
+  }, []);
 
   return (
-    <LinearGradient colors={[colors.bgGradientTop, colors.bgGradientBottom]} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onScrollEnd}
-        >
-          {SLIDES.map((slide, i) => (
-            <View key={i} style={[styles.slide, { width }]}>
-              <View style={styles.illustration}>
-                <BlobCluster />
-              </View>
-              <Text style={[typography.display, styles.title]}>{slide.title}</Text>
-              <Text style={[typography.body, styles.subtitle]}>{slide.subtitle}</Text>
-            </View>
-          ))}
-        </ScrollView>
+    <LinearGradient
+      colors={["#9EC2CE", "#07536C"]}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.gradient}
+    >
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <Image source={require("../../assets/noise.png")} style={styles.noise} resizeMode="cover" />
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <View style={styles.center}>
+          <Text style={styles.brandName}>seasponge</Text>
+        </View>
 
-        <View style={styles.footer}>
-          <ProgressDots count={SLIDES.length} activeIndex={index} />
-          <Button label={index === SLIDES.length - 1 ? "Get started" : "Next"} onPress={goNext} style={{ marginTop: 20 }} />
-          {index < SLIDES.length - 1 && (
-            <Text style={styles.skip} onPress={() => router.push("/(auth)/signup")}>
-              Skip
-            </Text>
-          )}
+        <View style={styles.bottomLayer}>
+          <SvgXml xml={leavesSvg} width={SCREEN_WIDTH} height={LEAVES_HEIGHT} preserveAspectRatio="xMidYMax meet" />
+          <Pressable
+            style={({ pressed }) => [styles.button, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push("/(auth)/signup")}
+          >
+            <Text style={styles.buttonText}>Get Started</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -79,10 +60,49 @@ export default function OnboardingSlides() {
 }
 
 const styles = StyleSheet.create({
-  slide: { alignItems: "center", paddingHorizontal: 32, paddingTop: 40 },
-  illustration: { height: 240, alignItems: "center", justifyContent: "center" },
-  title: { textAlign: "center", color: colors.text, marginTop: 12 },
-  subtitle: { textAlign: "center", color: colors.textMuted, marginTop: 14 },
-  footer: { paddingHorizontal: 32, paddingBottom: 24 },
-  skip: { ...typography.bodyMedium, textAlign: "center", color: colors.textMuted, marginTop: 16 },
+  gradient: {
+    flex: 1,
+  },
+  noise: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    opacity: 0.05,
+  },
+  safe: {
+    flex: 1,
+  },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 120,
+  },
+  brandName: {
+    fontFamily: "CalSans_400Regular",
+    fontSize: 72,
+    color: "#FFFFFF",
+    letterSpacing: -1.5,
+  },
+  bottomLayer: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 60,
+  },
+  button: {
+    backgroundColor: "#002B3A",
+    borderRadius: 16,
+    paddingVertical: 20,
+    marginTop: -40,
+    alignSelf: "stretch",
+    alignItems: "center",
+  },
+  buttonText: {
+    fontFamily: "Figtree_600SemiBold",
+    fontSize: 18,
+    color: "#FFFFFF",
+    letterSpacing: 0.2,
+  },
 });
