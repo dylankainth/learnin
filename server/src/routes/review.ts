@@ -164,3 +164,45 @@ reviewRouter.post("/:cardId", async (req: AuthedRequest, res) => {
 
   res.json({ dueAt: next.dueAt, intervalDays: next.intervalDays });
 });
+
+// GET /review/quiz?topicId=xxx&limit=5
+// Returns cards for a topic for a quiz session (due cards first, then least-studied)
+reviewRouter.get("/quiz", async (req: AuthedRequest, res) => {
+  await ensureSuperuserAuth();
+  const topicId = typeof req.query.topicId === "string" ? req.query.topicId : null;
+  const documentId = typeof req.query.documentId === "string" ? req.query.documentId : null;
+  const limit = Math.min(Number(req.query.limit ?? 5), 10);
+
+  if (!topicId) { res.status(400).json({ error: "topicId required" }); return; }
+
+  let filterExpr = "user_id = {:uid} && topic_id = {:tid}";
+  if (documentId) filterExpr += " && document_id = {:docId}";
+
+  const allCards = await pb.collection("cards").getFullList({
+    filter: pb.filter(filterExpr, { uid: req.userId, tid: topicId, docId: documentId }),
+    fields: "id,question,options,answer,explanation,due_at,reps,question_type,elaboration_prompt,difficulty",
+  });
+
+  const now = new Date();
+  // Due cards first, then by reps ascending (least studied first)
+  const sorted = allCards.sort((a, b) => {
+    const aDue = new Date(a.due_at) <= now ? 0 : 1;
+    const bDue = new Date(b.due_at) <= now ? 0 : 1;
+    if (aDue !== bDue) return aDue - bDue;
+    return (a.reps ?? 0) - (b.reps ?? 0);
+  });
+
+  const cards = sorted.slice(0, limit).map((c) => ({
+    id: c.id,
+    question: c.question,
+    options: c.options ?? null,
+    answer: c.answer,
+    explanation: c.explanation,
+    due_at: c.due_at,
+    question_type: c.question_type ?? (c.options ? "multiple-choice" : "free-text"),
+    elaboration_prompt: c.elaboration_prompt ?? null,
+    difficulty: c.difficulty ?? 1,
+  }));
+
+  res.json({ cards });
+});

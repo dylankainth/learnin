@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, ActivityIndicator, Linking, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, router, useLocalSearchParams } from "expo-router";
@@ -34,6 +34,51 @@ export default function TopicDetailScreen() {
     setRefreshing(false);
   }
 
+  function confirmDeleteDocument(item: DocumentSummary) {
+    Alert.alert(
+      "Delete resource?",
+      `"${item.title}" will be removed. Your study notes and cards generated from it won't be deleted automatically — you may want to review those too.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.documents.remove(item.id);
+              setContents((prev) => prev.filter((c) => c.id !== item.id));
+            } catch {
+              Alert.alert("Error", "Could not delete the resource. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function confirmDeleteTopic() {
+    if (!topic) return;
+    Alert.alert(
+      "Delete topic?",
+      `"${topic.name}" and all its resources will be permanently deleted. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.topics.delete(topic.id);
+              router.back();
+            } catch {
+              Alert.alert("Error", "Could not delete the topic. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (!topic) {
     return (
       <SafeAreaView style={styles.root} edges={["top"]}>
@@ -59,7 +104,12 @@ export default function TopicDetailScreen() {
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
 
-        <Text style={styles.heading}>{topic.name}</Text>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>{topic.name}</Text>
+          <Pressable onPress={confirmDeleteTopic} hitSlop={8}>
+            <Text style={styles.deleteTopicBtn}>Delete</Text>
+          </Pressable>
+        </View>
         {topic.description ? <Text style={styles.description}>{topic.description}</Text> : null}
 
         {/* Stat pills */}
@@ -110,6 +160,7 @@ export default function TopicDetailScreen() {
             <Pressable
               key={item.id}
               style={({ pressed }) => [styles.contentRow, pressed && { opacity: 0.7 }]}
+              onLongPress={() => confirmDeleteDocument(item)}
               onPress={async () => {
                 if (item.source_type === "pdf") {
                   if (openingPdf.current.has(item.id)) return;
@@ -179,12 +230,25 @@ const styles = StyleSheet.create({
   backBtn: { paddingVertical: 8, marginBottom: 4 },
   backText: { fontFamily: "Figtree_500Medium", fontSize: 14, color: "#78716C" },
 
+  headingRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
   heading: {
     fontFamily: "Figtree_700Bold",
     fontSize: 32,
     color: "#111111",
     letterSpacing: -0.5,
-    marginBottom: 6,
+    flex: 1,
+  },
+  deleteTopicBtn: {
+    fontFamily: "Figtree_500Medium",
+    fontSize: 13,
+    color: "#DC2626",
+    paddingTop: 8,
+    paddingLeft: 12,
   },
   description: {
     fontFamily: "Figtree_400Regular",

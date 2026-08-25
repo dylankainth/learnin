@@ -69,6 +69,27 @@ export async function sendDueReviewReminders(): Promise<void> {
   );
 }
 
+export async function sendQuizCompletionPush(userId: string, failedCount: number): Promise<void> {
+  await ensureSuperuserAuth();
+  const prefs = await pb.collection("notification_prefs").getFirstListItem(
+    pb.filter("user_id = {:uid}", { uid: userId }),
+  ).catch(() => null);
+
+  if (!prefs?.expo_push_token || !Expo.isExpoPushToken(prefs.expo_push_token)) return;
+
+  const body = failedCount > 0
+    ? `Quiz done! 🧠 ${failedCount} card${failedCount === 1 ? "" : "s"} saved for review — we'll remind you when it's time.`
+    : "Perfect score! 🌟 All cards reinforced. Keep it up!";
+
+  await expo.sendPushNotificationsAsync([{
+    to: prefs.expo_push_token,
+    sound: "default",
+    title: "Quiz complete",
+    body,
+    data: { type: "quiz_complete" },
+  }]);
+}
+
 export function startReminderCron(): void {
   // Runs every 15 minutes; the filtering above only fires per-user once their
   // local reminder hour matches and it's been a day since the last nudge.

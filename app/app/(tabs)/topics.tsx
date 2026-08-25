@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, router } from "expo-router";
@@ -24,6 +24,28 @@ export default function TopicsScreen() {
     setRefreshing(true);
     load();
     setRefreshing(false);
+  }
+
+  function confirmDeleteTopic(item: Topic) {
+    Alert.alert(
+      "Delete topic?",
+      `"${item.name}" and all its resources will be permanently deleted. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.topics.delete(item.id);
+              setTopics((prev) => prev.filter((t) => t.id !== item.id));
+            } catch {
+              Alert.alert("Error", "Could not delete the topic. Please try again.");
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -59,6 +81,7 @@ export default function TopicsScreen() {
             <Pressable
               style={[styles.tile, { backgroundColor: accent.bg }]}
               onPress={() => router.push(`/topic/${item.id}`)}
+              onLongPress={() => confirmDeleteTopic(item)}
             >
               <BlobMascot color={accent.fg} size={40} withFace={false} />
               <Text style={styles.tileName} numberOfLines={2}>{item.name}</Text>

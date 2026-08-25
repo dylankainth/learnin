@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { getOrCreateNotificationPrefs, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import { sendQuizCompletionPush } from "../services/push.js";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(requireAuth);
@@ -47,5 +48,11 @@ notificationsRouter.patch("/prefs", async (req: AuthedRequest, res) => {
   if (timezone !== undefined) patch.timezone = timezone;
   await pb.collection("notification_prefs").update(prefs.id, patch);
 
+  res.status(204).send();
+});
+
+notificationsRouter.post("/quiz-complete", async (req: AuthedRequest, res) => {
+  const failedCount = Number(req.body?.failedCount ?? 0);
+  await sendQuizCompletionPush(req.userId!, failedCount).catch(() => {});
   res.status(204).send();
 });

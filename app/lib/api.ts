@@ -88,6 +88,13 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ rating, confidencePre: confidence }),
       }),
+    quiz: (topicId: string, limit = 5, documentId?: string) => {
+      const params = new URLSearchParams({ topicId, limit: String(limit) });
+      if (documentId) params.append("documentId", documentId);
+      return request<{ cards: { id: string; question: string; options: string[] | null; answer: string; explanation: string; question_type: string }[] }>(
+        `/review/quiz?${params.toString()}`
+      );
+    },
   },
   notifications: {
     register: (expoPushToken: string) =>
@@ -95,6 +102,8 @@ export const api = {
     getPrefs: () => request<{ prefs: NotificationPrefs | null }>("/notifications/prefs"),
     updatePrefs: (body: Partial<{ enabled: boolean; reminderHourLocal: number; timezone: string }>) =>
       request<void>("/notifications/prefs", { method: "PATCH", body: JSON.stringify(body) }),
+    quizComplete: (body: { failedCount: number }) =>
+      request<void>("/notifications/quiz-complete", { method: "POST", body: JSON.stringify(body) }),
   },
   progress: {
     heatmap: (days = 90) => request<{ heatmap: { date: string; count: number }[] }>(`/progress/heatmap?days=${days}`),

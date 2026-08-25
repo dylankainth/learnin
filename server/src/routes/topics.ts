@@ -258,6 +258,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
           type: block.type,
           topic_order_index: block.topic_order_index,
           locked: block.locked ?? false,
+          documentId: block.document_id,
           ...block.content,
           cardId: card?.id,
           dueAt: card?.due_at,

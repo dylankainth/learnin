@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar, setStatusBarBackgroundColor, setStatusBarStyle } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
 let VolumeManager: typeof import("react-native-volume-manager").VolumeManager | null = null;
 try {
   VolumeManager = require("react-native-volume-manager").VolumeManager;
@@ -231,7 +231,7 @@ export default function TopicStudyScreen() {
                 blockOffsets.current[index] = e.nativeEvent.layout.y;
               }}
             >
-              <QuizItem block={block} />
+              <QuestSection topicId={topicId!} documentId={block.documentId} />
             </View>
           ),
         )}
@@ -355,6 +355,37 @@ function QuizItem({ block }: { block: TopicBlock }) {
   );
 }
 
+type Quest = { id: string; label: string; emoji: string; locked: boolean; onPress?: () => void };
+
+function QuestSection({ topicId, documentId }: { topicId: string; documentId?: string }) {
+  const quests: Quest[] = [
+    { id: "quiz", label: "Quiz", emoji: "🧠", locked: false, onPress: () => router.push({ pathname: "/quiz/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
+    { id: "longform", label: "Long Answer", emoji: "✍️", locked: true },
+    { id: "minigame", label: "Minigame", emoji: "🎮", locked: true },
+  ];
+
+  return (
+    <View style={styles.questSection}>
+      <View style={styles.questRule} />
+      <Text style={styles.questLabel}>Check your understanding</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.questRow}>
+        {quests.map((q) => (
+          <Pressable
+            key={q.id}
+            style={[styles.questCard, q.locked && styles.questCardLocked]}
+            onPress={q.locked ? undefined : q.onPress}
+            disabled={q.locked}
+          >
+            <Text style={styles.questEmoji}>{q.emoji}</Text>
+            <Text style={[styles.questName, q.locked && styles.questNameLocked]}>{q.label}</Text>
+            {q.locked && <Text style={styles.questLock}>🔒</Text>}
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 function Header({
   title,
   onTitlePress,
@@ -437,6 +468,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 32,
+  },
+  questSection: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  questRule: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 20,
+  },
+  questLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    marginBottom: 14,
+  },
+  questRow: {
+    gap: 12,
+    paddingRight: 4,
+  },
+  questCard: {
+    width: 100,
+    borderRadius: 14,
+    backgroundColor: "#111111",
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    gap: 8,
+  },
+  questCardLocked: {
+    backgroundColor: "#F5F4F0",
+  },
+  questEmoji: {
+    fontSize: 28,
+  },
+  questName: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  questNameLocked: {
+    color: colors.textMuted,
+  },
+  questLock: {
+    fontSize: 11,
   },
   tocBackdrop: {
     flex: 1,

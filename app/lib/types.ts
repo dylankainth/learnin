@@ -100,6 +100,7 @@ export interface TopicBlock {
   type: "explainer" | "quiz";
   topic_order_index: number;
   locked: boolean;
+  documentId?: string;
   // explainer fields
   markdown?: string;
   readParagraphs?: number[];
