@@ -13,6 +13,7 @@ import {
 import { StatusBar, setStatusBarBackgroundColor, setStatusBarStyle } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 let VolumeManager: typeof import("react-native-volume-manager").VolumeManager | null = null;
 try {
   VolumeManager = require("react-native-volume-manager").VolumeManager;
@@ -63,6 +64,8 @@ export default function TopicStudyScreen() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const blockOffsets = useRef<number[]>([]);
+  const detailRef = useRef<TopicStudyDetail | null>(null);
+  const progressReadRef = useRef(0);
   const scrollY = useRef(0);
   const lastVolume = useRef<number | null>(null);
   const SCROLL_STEP = Dimensions.get("window").height * 0.8;
@@ -73,6 +76,7 @@ export default function TopicStudyScreen() {
     blockStatsRef.current.set(blockId, { total, read });
     let t = 0, r = 0;
     for (const s of blockStatsRef.current.values()) { t += s.total; r += s.read; }
+    progressReadRef.current = r;
     setProgressStats({ total: t, read: r });
   }, []);
 
@@ -81,6 +85,7 @@ export default function TopicStudyScreen() {
     if (!silent) setLoading(true);
     try {
       const data = await api.topics.study(topicId);
+      detailRef.current = data;
       setDetail(data);
       if (data.processingCount > 0) {
         pollRef.current = setTimeout(() => load(true), 5000);
@@ -127,6 +132,40 @@ export default function TopicStudyScreen() {
         VolumeManager?.showNativeVolumeUI({ enabled: true });
       };
     }, [load, SCROLL_STEP]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const sessionStart = Date.now();
+      const initialRead = progressReadRef.current;
+
+      return () => {
+        const durationMin = (Date.now() - sessionStart) / 60000;
+        const newlyRead = progressReadRef.current - initialRead;
+        if (durationMin < 1 || newlyRead < 2) return;
+
+        const blocks = detailRef.current?.blocks ?? [];
+        const allMarkdown = blocks
+          .filter((b) => b.type === "explainer" && b.markdown)
+          .map((b) => b.markdown!)
+          .join(" ");
+        const totalWords = allMarkdown.split(/\s+/).filter(Boolean).length;
+        const totalParagraphs = [...blockStatsRef.current.values()].reduce((s, v) => s + v.total, 0);
+        const avgWords = totalParagraphs > 0 ? totalWords / totalParagraphs : 55;
+        const wpm = Math.round((newlyRead * avgWords) / durationMin);
+
+        if (wpm < 50 || wpm > 1500) return;
+
+        const date = new Date().toISOString().split("T")[0];
+        AsyncStorage.getItem("@learnin/reading_sessions").then((raw) => {
+          const sessions: { date: string; wpm: number }[] = raw ? JSON.parse(raw) : [];
+          const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+          const pruned = sessions.filter((s) => new Date(s.date).getTime() >= cutoff);
+          pruned.push({ date, wpm });
+          AsyncStorage.setItem("@learnin/reading_sessions", JSON.stringify(pruned));
+        });
+      };
+    }, []),
   );
 
   async function onLockBlock(blockId: string) {
@@ -355,13 +394,17 @@ function QuizItem({ block }: { block: TopicBlock }) {
   );
 }
 
-type Quest = { id: string; label: string; emoji: string; locked: boolean; onPress?: () => void };
+type Quest = {
+  id: string; label: string; emoji: string; locked: boolean;
+  bg: string; fg: string; onPress?: () => void;
+};
 
 function QuestSection({ topicId, documentId }: { topicId: string; documentId?: string }) {
   const quests: Quest[] = [
-    { id: "quiz", label: "Quiz", emoji: "🧠", locked: false, onPress: () => router.push({ pathname: "/quiz/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
-    { id: "longform", label: "Long Answer", emoji: "✍️", locked: true },
-    { id: "minigame", label: "Minigame", emoji: "🎮", locked: true },
+    { id: "quiz", label: "Quiz", emoji: "🧠", locked: false, bg: "#cbc4e1", fg: "#1f2184",
+      onPress: () => router.push({ pathname: "/quiz/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
+    { id: "longform", label: "Long Answer", emoji: "✍️", locked: true, bg: "#cbe1c3", fg: "#255312" },
+    { id: "minigame", label: "Minigame", emoji: "🎮", locked: true, bg: "#ce9eaa", fg: "#420000" },
   ];
 
   return (
@@ -372,12 +415,12 @@ function QuestSection({ topicId, documentId }: { topicId: string; documentId?: s
         {quests.map((q) => (
           <Pressable
             key={q.id}
-            style={[styles.questCard, q.locked && styles.questCardLocked]}
+            style={[styles.questCard, { backgroundColor: q.bg }, q.locked && styles.questCardLocked]}
             onPress={q.locked ? undefined : q.onPress}
             disabled={q.locked}
           >
             <Text style={styles.questEmoji}>{q.emoji}</Text>
-            <Text style={[styles.questName, q.locked && styles.questNameLocked]}>{q.label}</Text>
+            <Text style={[styles.questName, { color: q.fg }]}>{q.label}</Text>
             {q.locked && <Text style={styles.questLock}>🔒</Text>}
           </Pressable>
         ))}
@@ -493,14 +536,13 @@ const styles = StyleSheet.create({
   questCard: {
     width: 100,
     borderRadius: 14,
-    backgroundColor: "#111111",
     paddingVertical: 18,
     paddingHorizontal: 12,
     alignItems: "center",
     gap: 8,
   },
   questCardLocked: {
-    backgroundColor: "#F5F4F0",
+    opacity: 0.6,
   },
   questEmoji: {
     fontSize: 28,
@@ -508,11 +550,7 @@ const styles = StyleSheet.create({
   questName: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: "#FFFFFF",
     textAlign: "center",
-  },
-  questNameLocked: {
-    color: colors.textMuted,
   },
   questLock: {
     fontSize: 11,

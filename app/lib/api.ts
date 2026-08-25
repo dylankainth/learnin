@@ -110,6 +110,7 @@ export const api = {
     retention: () =>
       request<{ studied: number; lapsed: number; avgReps: number; retentionRate: number; total: number; correct: number }>("/progress/retention"),
     seedSampleData: () => request<{ seeded: number }>("/progress/seed-sample-data", { method: "POST" }),
+    firstUnderstanding: () => request<{ rate: number; correct: number; total: number }>("/progress/first-understanding"),
   },
   chat: {
     start: (documentId: string) =>

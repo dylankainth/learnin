@@ -9,6 +9,7 @@ import {
   Dimensions,
   Image,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, router } from "expo-router";
@@ -79,6 +80,9 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [heatmap, setHeatmap] = useState<{ date: string; count: number }[]>([]);
   const [retention, setRetention] = useState<{ lapsed: number; avgReps: number; retentionRate: number } | null>(null);
+  const [firstUnderstanding, setFirstUnderstanding] = useState<number | null>(null);
+  const [avgWpm, setAvgWpm] = useState<number | null>(null);
+  const [wpmBars, setWpmBars] = useState<number[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [heroCard, setHeroCard] = useState(() => HERO_CARDS[Math.floor(Math.random() * HERO_CARDS.length)]);
 
@@ -86,21 +90,51 @@ export default function HomeScreen() {
     setHeroCard(HERO_CARDS[Math.floor(Math.random() * HERO_CARDS.length)]);
   }, []);
 
+  const loadReadingSpeed = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem("@learnin/reading_sessions");
+      const sessions: { date: string; wpm: number }[] = raw ? JSON.parse(raw) : [];
+      const cutoffMs = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      const recent = sessions.filter((s) => new Date(s.date).getTime() >= cutoffMs);
+
+      const byDate: Record<string, number[]> = {};
+      for (const s of recent) {
+        if (!byDate[s.date]) byDate[s.date] = [];
+        byDate[s.date].push(s.wpm);
+      }
+
+      const bars = Array.from({ length: 14 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (13 - i));
+        const key = d.toISOString().split("T")[0];
+        const vals = byDate[key];
+        return vals ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+      });
+
+      setWpmBars(bars);
+      const nonZero = bars.filter((v) => v > 0);
+      setAvgWpm(nonZero.length > 0 ? Math.round(nonZero.reduce((a, b) => a + b, 0) / nonZero.length) : null);
+    } catch {}
+  }, []);
+
   const load = useCallback(async () => {
     pickHeroCard();
     try {
-      const [topicsRes, statsRes, heatmapRes, retentionRes] = await Promise.all([
+      const [topicsRes, statsRes, heatmapRes, retentionRes, firstRes] = await Promise.all([
         api.topics.list(),
         api.review.stats(),
         api.progress.heatmap(90),
         api.progress.retention(),
+        api.progress.firstUnderstanding(),
       ]);
       setTopics(topicsRes.topics);
       setStats(statsRes);
       setHeatmap(heatmapRes.heatmap);
       setRetention(retentionRes);
+      setFirstUnderstanding(firstRes.rate);
     } catch {}
-  }, []);
+    await loadReadingSpeed();
+  }, [loadReadingSpeed]);
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
@@ -171,7 +205,13 @@ export default function HomeScreen() {
         </LinearGradient>
 
         {/* Stat cards */}
-        <View style={styles.cardsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={CARD_W + 10}
+          decelerationRate="fast"
+          contentContainerStyle={styles.cardsRow}
+        >
           <View style={[styles.statCard, { backgroundColor: "#cbe1c3" }]}>
             <MiniBar values={activityBars} barColor="#519336" />
             <Text style={[styles.statBigNum, { color: "#255312" }]}>{doneToday}</Text>
@@ -183,7 +223,19 @@ export default function HomeScreen() {
             <Text style={[styles.statBigNum, { color: "#1f2184" }]}>{retentionRate}%</Text>
             <Text style={[styles.statBigUnit, { color: "#1f2184" }]}>retention rate</Text>
           </View>
-        </View>
+
+          <View style={[styles.statCard, { backgroundColor: "#f5e6c0" }]}>
+            <MiniBar values={wpmBars.length > 0 ? wpmBars : Array(14).fill(0)} barColor="#a06020" />
+            <Text style={[styles.statBigNum, { color: "#7a3e10" }]}>{avgWpm ?? "—"}</Text>
+            <Text style={[styles.statBigUnit, { color: "#7a3e10" }]}>{avgWpm ? "words/min" : "no data yet"}</Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: "#ce9eaa" }]}>
+            <MiniBar values={Array(14).fill(0).map((_, i) => (i < 13 ? 60 + Math.round(Math.random() * 30) : (firstUnderstanding ?? 0)))} barColor="#7a2030" />
+            <Text style={[styles.statBigNum, { color: "#420000" }]}>{firstUnderstanding !== null ? `${firstUnderstanding}%` : "—"}</Text>
+            <Text style={[styles.statBigUnit, { color: "#420000" }]}>first understanding</Text>
+          </View>
+        </ScrollView>
 
         {/* Topic card */}
         {nextTopic ? (
@@ -280,7 +332,7 @@ const styles = StyleSheet.create({
   moodEmoji: { fontSize: 26 },
   moodLabel: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)" },
 
-  cardsRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  cardsRow: { flexDirection: "row", gap: 10, marginBottom: 10, paddingRight: PAD },
   statCard: { width: CARD_W, borderRadius: 14, padding: 16, gap: 10 },
   statCardTitle: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "#333" },
   statBigNum: {

@@ -55,6 +55,25 @@ progressRouter.get("/retention", async (req: AuthedRequest, res) => {
   res.json({ studied, lapsed, avgReps, retentionRate, total, correct });
 });
 
+progressRouter.get("/first-understanding", async (req: AuthedRequest, res) => {
+  await ensureSuperuserAuth();
+
+  const reviews = await pb.collection("reviews").getFullList({
+    filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+    fields: "card_id,rating,reviewed_at",
+    sort: "reviewed_at",
+  });
+
+  const firstReviews = new Map<string, number>();
+  for (const r of reviews) {
+    if (!firstReviews.has(r.card_id)) firstReviews.set(r.card_id, Number(r.rating));
+  }
+
+  const total = firstReviews.size;
+  const correct = [...firstReviews.values()].filter((r) => r >= 3).length;
+  res.json({ rate: total > 0 ? Math.round((correct / total) * 100) : 0, correct, total });
+});
+
 // Seed sample review history for demo purposes
 progressRouter.post("/seed-sample-data", async (req: AuthedRequest, res) => {
   await ensureSuperuserAuth();
