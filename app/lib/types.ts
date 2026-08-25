@@ -14,6 +14,7 @@ export interface Topic {
   content_count: number;
   card_count: number;
   due_count: number;
+  next_due_at?: string;
 }
 
 export interface DocumentSummary {

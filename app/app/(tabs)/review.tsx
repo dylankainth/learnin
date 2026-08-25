@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -10,15 +10,34 @@ import type { Topic, ReviewStats } from "@/lib/types";
 
 const PAD = 8;
 
+function useNow(intervalMs = 30_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+function formatCountdown(msUntil: number): string {
+  const totalSeconds = Math.max(0, Math.floor(msUntil / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return "< 1m";
+}
+
 export default function ReviewScreen() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const now = useNow(30_000);
 
   const load = useCallback(() => {
     Promise.all([api.topics.list(), api.review.stats()])
       .then(([t, s]) => {
-        setTopics(t.topics.filter((topic) => Number(topic.due_count) > 0));
+        setTopics(t.topics.filter((topic) => topic.card_count > 0));
         setStats(s);
       })
       .catch(() => {});
@@ -33,12 +52,18 @@ export default function ReviewScreen() {
   }
 
   const dueNow = Number(stats?.due_now ?? 0);
+  const dueTopics = topics.filter((t) => Number(t.due_count) > 0);
+  const lockedTopics = topics.filter(
+    (t) => Number(t.due_count) === 0 && t.next_due_at
+  );
+
+  const listData: Topic[] = [...dueTopics, ...lockedTopics];
 
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
       <StatusBar style="dark" backgroundColor="#FFFFFF" />
       <FlatList
-        data={topics}
+        data={listData}
         keyExtractor={(t) => t.id}
         numColumns={2}
         columnWrapperStyle={{ gap: 10 }}
@@ -60,23 +85,39 @@ export default function ReviewScreen() {
               </View>
             )}
 
-            {topics.length === 0 && dueNow === 0 && (
+            {listData.length === 0 && (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>No cards due. Great work!</Text>
+                <Text style={styles.emptyText}>No cards yet. Add content to a topic to get started.</Text>
               </View>
             )}
           </View>
         }
         renderItem={({ item }) => {
           const accent = accentFor(item.name);
+          const isLocked = Number(item.due_count) === 0;
+          const msUntil = item.next_due_at ? new Date(item.next_due_at).getTime() - now : null;
+
           return (
             <Pressable
-              style={[styles.tile, { backgroundColor: accent.bg }]}
-              onPress={() => router.push({ pathname: "/review/session", params: { topicId: item.id } })}
+              style={[styles.tile, { backgroundColor: isLocked ? "#F5F4F0" : accent.bg }, isLocked && styles.tileLocked]}
+              onPress={isLocked ? undefined : () => router.push({ pathname: "/review/session", params: { topicId: item.id } })}
+              disabled={isLocked}
             >
-              <BlobMascot color={accent.fg} size={40} withFace={false} />
-              <Text style={styles.tileName} numberOfLines={2}>{item.name}</Text>
-              <Text style={[styles.tileSub, { color: accent.fg }]}>{item.due_count} due</Text>
+              {isLocked ? (
+                <>
+                  <Text style={styles.lockIcon}>🔒</Text>
+                  <Text style={styles.tileNameLocked} numberOfLines={2}>{item.name}</Text>
+                  {msUntil !== null && (
+                    <Text style={styles.countdown}>{formatCountdown(msUntil)}</Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <BlobMascot color={accent.fg} size={40} withFace={false} />
+                  <Text style={styles.tileName} numberOfLines={2}>{item.name}</Text>
+                  <Text style={[styles.tileSub, { color: accent.fg }]}>{item.due_count} due</Text>
+                </>
+              )}
             </Pressable>
           );
         }}
@@ -145,6 +186,9 @@ const styles = StyleSheet.create({
     minHeight: 130,
     justifyContent: "center",
   },
+  tileLocked: {
+    opacity: 0.75,
+  },
   tileName: {
     fontFamily: "Figtree_600SemiBold",
     fontSize: 14,
@@ -152,9 +196,25 @@ const styles = StyleSheet.create({
     marginTop: 10,
     lineHeight: 20,
   },
+  tileNameLocked: {
+    fontFamily: "Figtree_600SemiBold",
+    fontSize: 14,
+    color: "#78716C",
+    marginTop: 6,
+    lineHeight: 20,
+  },
   tileSub: {
     fontFamily: "Figtree_400Regular",
     fontSize: 12,
     marginTop: 2,
+  },
+  lockIcon: {
+    fontSize: 22,
+  },
+  countdown: {
+    fontFamily: "Figtree_700Bold",
+    fontSize: 13,
+    color: "#78716C",
+    marginTop: 4,
   },
 });
