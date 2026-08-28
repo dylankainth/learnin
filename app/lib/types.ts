@@ -115,12 +115,26 @@ export interface TopicBlock {
   reps?: number;
 }
 
+export interface LongformQuestion {
+  id: string;
+  question: string;
+}
+
+export interface LongformGradeResult {
+  score: number;
+  verdict: "excellent" | "good" | "needs_work" | "incorrect";
+  feedback: string;
+  strengths: string[];
+  missedPoints: string[];
+}
+
 export interface TopicStudyDetail {
   topic: {
     id: string;
     name: string;
     description?: string;
     color_accent?: string;
+    lastScrollPercent?: number;
   };
   processingCount: number;
   blocks: TopicBlock[];

@@ -6,6 +6,7 @@ import { useFocusEffect, router } from "expo-router";
 import { accentFor } from "@/theme/colors";
 import { BlobMascot } from "@/components/BlobMascot";
 import { api } from "@/lib/api";
+import { useOnReconnect } from "@/lib/connectivity";
 import type { Topic } from "@/lib/types";
 
 const PAD = 8;
@@ -19,6 +20,7 @@ export default function TopicsScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  useOnReconnect(load);
 
   async function onRefresh() {
     setRefreshing(true);

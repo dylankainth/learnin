@@ -16,6 +16,8 @@ import {
   SourceSerif4_700Bold,
 } from "@expo-google-fonts/source-serif-4";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { ConnectivityProvider } from "@/lib/connectivity";
+import { ToastHost } from "@/lib/toast";
 import { colors } from "@/theme/colors";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -57,20 +59,23 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <AuthProvider>
-      <AuthGuard />
-      <StatusBar style="dark" backgroundColor={colors.bg} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: "transparent" },
-          animation: "slide_from_right",
-          gestureEnabled: true,
-          animationMatchesGesture: true,
-        }}
-      >
-        <Stack.Screen name="(auth)" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      </Stack>
-    </AuthProvider>
+    <ConnectivityProvider>
+      <AuthProvider>
+        <AuthGuard />
+        <StatusBar style="dark" backgroundColor={colors.bg} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+            animation: "slide_from_right",
+            gestureEnabled: true,
+            animationMatchesGesture: true,
+          }}
+        >
+          <Stack.Screen name="(auth)" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+        </Stack>
+        <ToastHost />
+      </AuthProvider>
+    </ConnectivityProvider>
   );
 }

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Learnin</title>
+  <meta name="description" content="How Learnin collects, uses, and protects your data.">
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #C7B9F2 0%, #FFFFFF 100%);
+      min-height: 100vh;
+      padding: 48px 20px 64px;
+      color: #241E38;
+    }
+
+    .container {
+      position: relative;
+      max-width: 720px;
+      margin: 0 auto;
+      z-index: 1;
+    }
+
+    .blob {
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      background: rgba(108, 79, 224, 0.12);
+      border-radius: 45% 55% 60% 40% / 55% 45% 40% 60%;
+      animation: blob 6s ease-in-out infinite;
+      top: -120px;
+      right: -140px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes blob {
+      0%, 100% {
+        border-radius: 45% 55% 60% 40% / 55% 45% 40% 60%;
+        transform: scale(1);
+      }
+      25% {
+        border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+        transform: scale(1.05);
+      }
+      50% {
+        border-radius: 50% 50% 40% 60% / 60% 40% 50% 50%;
+        transform: scale(1.02);
+      }
+      75% {
+        border-radius: 55% 45% 55% 45% / 45% 55% 45% 55%;
+        transform: scale(1.03);
+      }
+    }
+
+    .back-link {
+      display: inline-block;
+      color: #6C4FE0;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      margin-bottom: 24px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .beta-badge {
+      display: inline-block;
+      background: rgba(108, 79, 224, 0.2);
+      color: #6C4FE0;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      border: 1px solid rgba(108, 79, 224, 0.3);
+    }
+
+    h1 {
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+
+    .updated {
+      font-size: 14px;
+      color: #8D86A6;
+      font-weight: 600;
+      margin-bottom: 36px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 18px;
+      border: 1px solid rgba(108, 79, 224, 0.2);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #6C4FE0;
+      margin-bottom: 14px;
+    }
+
+    p, li {
+      font-size: 15px;
+      color: #4A4360;
+      line-height: 1.7;
+    }
+
+    ul {
+      padding-left: 22px;
+      margin: 8px 0;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    strong {
+      color: #241E38;
+    }
+
+    a {
+      color: #6C4FE0;
+      font-weight: 600;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 13px;
+      color: #8D86A6;
+      margin-top: 32px;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 32px;
+      }
+
+      .card {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="blob"></div>
+  <div class="container">
+    <a class="back-link" href="/">&larr; Back to Learnin</a>
+    <div class="beta-badge">Privacy Policy</div>
+    <h1>Learnin</h1>
+    <p class="updated">Last updated: August 26, 2026</p>
+
+    <div class="card">
+      <h2>Overview</h2>
+      <p>Learnin (the "app", also known as "Sea Sponge") turns your lecture PDFs and recordings into interactive explainers, quizzes, and spaced-repetition reviews. This policy explains what information we collect, how we use it, and the choices you have. By using the app, you agree to this policy.</p>
+    </div>
+
+    <div class="card">
+      <h2>Information We Collect</h2>
+      <ul>
+        <li><strong>Account information.</strong> Your email address and password when you create an account, plus optional profile details like your name and learning goal.</li>
+        <li><strong>Content you upload.</strong> Lecture PDFs, audio, and video files you upload so the app can process them into study materials.</li>
+        <li><strong>Generated study materials.</strong> The explainers, quiz questions, and review cards created from your uploads.</li>
+        <li><strong>Learning activity.</strong> Your review history, quiz results, progress, streaks, and topics, used to schedule spaced-repetition reminders.</li>
+        <li><strong>Notification preferences.</strong> Your reminder settings and your device's push notification token, used only to deliver reminders you've asked for.</li>
+      </ul>
+      <p style="margin-top: 10px;">We do not sell your data, and the app contains no advertising or third-party analytics/tracking SDKs.</p>
+    </div>
+
+    <div class="card">
+      <h2>How We Use Your Information</h2>
+      <ul>
+        <li>To create your account and authenticate you.</li>
+        <li>To transcribe recordings, generate explainers and quizzes, and power the Socratic chat feature.</li>
+        <li>To schedule and deliver your spaced-repetition review reminders via push notifications.</li>
+        <li>To operate, maintain, and improve the app.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Third-Party Processing</h2>
+      <p>To power the app's AI features, portions of your content are sent to third-party services strictly for processing:</p>
+      <ul>
+        <li><strong>AI providers (via OpenRouter).</strong> Extracted lecture text and chat messages are sent to large language model providers routed through OpenRouter (for example Google's Gemini models) to generate explainers, quizzes, and chat responses.</li>
+        <li><strong>Transcription service.</strong> Audio and video you upload are processed by a speech-to-text (Whisper-compatible) transcription service to produce transcripts.</li>
+        <li><strong>Expo push notifications.</strong> Reminder notifications are delivered through Expo's push notification service.</li>
+      </ul>
+      <p style="margin-top: 10px;">These services process your content only to provide their function to the app. We encourage you to avoid uploading content you are not permitted to share.</p>
+    </div>
+
+    <div class="card">
+      <h2>Data Storage &amp; Security</h2>
+      <p>Your account, content, and study data are stored on our own servers in a self-hosted database, not shared with any cloud analytics platform. Passwords are stored using industry-standard hashing by our authentication system, and API requests require authentication tokens. Uploaded files are accessible only to your authenticated account.</p>
+    </div>
+
+    <div class="card">
+      <h2>Data Retention &amp; Deletion</h2>
+      <p>We keep your data only while your account is active. When you delete a document or recording, its associated file and generated study materials are removed. If you delete your account, your account information, uploads, and study data are deleted. You may also contact us to request deletion at any time.</p>
+    </div>
+
+    <div class="card">
+      <h2>Children's Privacy</h2>
+      <p>Learnin is not directed at children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child has provided us personal information, please contact us so we can delete it.</p>
+    </div>
+
+    <div class="card">
+      <h2>Changes to This Policy</h2>
+      <p>We may update this policy from time to time. If we make material changes, we'll notify you through the app or by updating the date above. Continued use of the app after changes take effect means you accept the updated policy.</p>
+    </div>
+
+    <div class="card">
+      <h2>Contact Us</h2>
+      <p>Questions about this policy or your data? Reach out at <a href="mailto:you@example.com">you@example.com</a>.</p>
+    </div>
+
+    <p class="footer-note">&copy; 2026 Learnin. All rights reserved.</p>
+  </div>
+</body>
+</html>

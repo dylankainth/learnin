@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ensureSuperuserAuth, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { schedule, type CardState, type Rating, type CardReview } from "../services/srs.js";
+import { generateLongformQuestions, gradeLongformAnswer } from "../services/llm.js";
 
 export const reviewRouter = Router();
 reviewRouter.use(requireAuth);
@@ -205,4 +206,132 @@ reviewRouter.get("/quiz", async (req: AuthedRequest, res) => {
   }));
 
   res.json({ cards });
+});
+
+// POST /review/longform/generate  { topicId, documentId?, count? }
+// Generates fresh open-ended long-answer questions from a topic's study
+// material and persists them so they can be graded later.
+const longformGenerateSchema = z.object({
+  topicId: z.string().min(1),
+  documentId: z.string().min(1).optional(),
+  count: z.number().int().min(1).max(5).optional(),
+});
+
+reviewRouter.post("/longform/generate", async (req: AuthedRequest, res) => {
+  const parsed = longformGenerateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { topicId, documentId, count = 3 } = parsed.data;
+
+  await ensureSuperuserAuth();
+
+  let topic;
+  try {
+    topic = await pb.collection("topics").getOne(topicId);
+  } catch {
+    res.status(404).json({ error: "Topic not found" });
+    return;
+  }
+  if (topic.user_id !== req.userId) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+
+  let filterExpr = "topic_id = {:tid} && type = 'explainer'";
+  if (documentId) filterExpr += " && document_id = {:docId}";
+  const blocks = await pb.collection("blocks").getFullList({
+    filter: pb.filter(filterExpr, { tid: topicId, docId: documentId }),
+    fields: "content,topic_order_index",
+    sort: "topic_order_index",
+  });
+
+  const content = blocks.map((b) => (b.content as { markdown?: string })?.markdown ?? "").filter(Boolean).join("\n\n");
+  if (!content.trim()) {
+    res.status(400).json({ error: "No study material available yet for this topic" });
+    return;
+  }
+
+  let questions;
+  try {
+    questions = await generateLongformQuestions(topic.name, content, count);
+  } catch (err) {
+    console.error("Failed to generate long-answer questions:", err);
+    res.status(502).json({ error: "Failed to generate long-answer questions" });
+    return;
+  }
+
+  const created = await Promise.all(
+    questions.map((q) =>
+      pb.collection("longform_questions").create({
+        user_id: req.userId,
+        topic_id: topicId,
+        document_id: documentId ?? null,
+        question: q.question,
+        key_points: q.key_points,
+      }),
+    ),
+  );
+
+  res.json({
+    questions: created.map((c) => ({ id: c.id, question: c.question as string })),
+  });
+});
+
+// POST /review/longform/:id/submit  { answer }
+// Grades a student's written answer against the question's rubric and
+// persists the result.
+const longformSubmitSchema = z.object({
+  answer: z.string().min(1).max(8000),
+});
+
+reviewRouter.post("/longform/:id/submit", async (req: AuthedRequest, res) => {
+  const parsed = longformSubmitSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { answer } = parsed.data;
+
+  await ensureSuperuserAuth();
+
+  let record;
+  try {
+    record = await pb.collection("longform_questions").getOne(req.params.id);
+  } catch {
+    res.status(404).json({ error: "Question not found" });
+    return;
+  }
+  if (record.user_id !== req.userId) {
+    res.status(404).json({ error: "Question not found" });
+    return;
+  }
+
+  let grade;
+  try {
+    grade = await gradeLongformAnswer(record.question as string, (record.key_points as string[]) ?? [], answer);
+  } catch (err) {
+    console.error("Failed to grade long-answer response:", err);
+    res.status(502).json({ error: "Failed to grade your answer" });
+    return;
+  }
+
+  await pb.collection("longform_questions").update(record.id, {
+    answer,
+    score: grade.score,
+    verdict: grade.verdict,
+    feedback: grade.feedback,
+    strengths: grade.strengths,
+    missed_points: grade.missed_points,
+    answered_at: new Date(),
+  });
+
+  res.json({
+    score: grade.score,
+    verdict: grade.verdict,
+    feedback: grade.feedback,
+    strengths: grade.strengths,
+    missedPoints: grade.missed_points,
+  });
 });

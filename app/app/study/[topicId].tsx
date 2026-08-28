@@ -26,6 +26,7 @@ import { typography, fonts } from "@/theme/typography";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { InlineQuiz } from "@/components/InlineQuiz";
 import { api } from "@/lib/api";
+import { useOnReconnect } from "@/lib/connectivity";
 import type { TopicBlock, TopicStudyDetail } from "@/lib/types";
 
 type TocEntry = { text: string; level: number; blockIndex: number };
@@ -69,6 +70,41 @@ export default function TopicStudyScreen() {
   const scrollY = useRef(0);
   const lastVolume = useRef<number | null>(null);
   const SCROLL_STEP = Dimensions.get("window").height * 0.8;
+  const savedScrollPercent = useRef<number | null>(null);
+  const hasRestoredScroll = useRef(false);
+  const scrollSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedPercent = useRef<number | null>(null);
+
+  function tryRestoreScroll() {
+    if (hasRestoredScroll.current) return;
+    const percent = savedScrollPercent.current;
+    if (percent === null || percent <= 0) {
+      hasRestoredScroll.current = true;
+      return;
+    }
+    // Both measurements come from separate onLayout/onContentSizeChange events
+    // that can fire in either order — bail until both are actually in, or a
+    // still-zero viewport height would make `scrollable` look far bigger
+    // than it really is and lock in a wildly wrong restore position.
+    if (contentHeight.current <= 0 || viewportHeight.current <= 0) return;
+    const scrollable = contentHeight.current - viewportHeight.current;
+    if (scrollable <= 0) return; // content not fully laid out yet — wait for the next event
+    hasRestoredScroll.current = true;
+    const y = (percent / 100) * scrollable;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y, animated: false });
+    });
+  }
+
+  function scheduleScrollSave(percent: number) {
+    if (!topicId || !hasRestoredScroll.current) return; // don't save until initial restore has settled
+    if (scrollSaveTimer.current) clearTimeout(scrollSaveTimer.current);
+    scrollSaveTimer.current = setTimeout(() => {
+      if (lastSavedPercent.current === percent) return;
+      lastSavedPercent.current = percent;
+      api.topics.saveScroll(topicId, percent).catch(() => {});
+    }, 1000);
+  }
 
   const onBlockStatsChange = useCallback((blockId: string, total: number, read: number) => {
     const prev = blockStatsRef.current.get(blockId);
@@ -87,6 +123,18 @@ export default function TopicStudyScreen() {
       const data = await api.topics.study(topicId);
       detailRef.current = data;
       setDetail(data);
+      if (!silent) {
+        savedScrollPercent.current = data.topic.lastScrollPercent ?? 0;
+        hasRestoredScroll.current = false;
+        // onLayout/onContentSizeChange only fire when the ScrollView's size
+        // actually changes — if this screen was already mounted (e.g. we
+        // just navigated back to it) and the content renders at the same
+        // size as before, neither event fires again, so restore would never
+        // be attempted. Try directly against whatever height is already
+        // known; it's a no-op (not a false "restored") if layout hasn't
+        // happened yet, and the layout callbacks still cover a fresh mount.
+        requestAnimationFrame(() => tryRestoreScroll());
+      }
       if (data.processingCount > 0) {
         pollRef.current = setTimeout(() => load(true), 5000);
       }
@@ -134,12 +182,26 @@ export default function TopicStudyScreen() {
     }, [load, SCROLL_STEP]),
   );
 
+  // Came back online after being offline — silently pull the latest content
+  // (a global toast already told the user this is happening).
+  useOnReconnect(useCallback(() => { load(true); }, [load]));
+
   useFocusEffect(
     useCallback(() => {
       const sessionStart = Date.now();
       const initialRead = progressReadRef.current;
 
       return () => {
+        if (scrollSaveTimer.current) clearTimeout(scrollSaveTimer.current);
+        if (hasRestoredScroll.current && topicId) {
+          const scrollable = contentHeight.current - viewportHeight.current;
+          const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((scrollY.current / scrollable) * 100))) : 0;
+          if (percent !== lastSavedPercent.current) {
+            lastSavedPercent.current = percent;
+            api.topics.saveScroll(topicId, percent).catch(() => {});
+          }
+        }
+
         const durationMin = (Date.now() - sessionStart) / 60000;
         const newlyRead = progressReadRef.current - initialRead;
         if (durationMin < 1 || newlyRead < 2) return;
@@ -243,11 +305,13 @@ export default function TopicStudyScreen() {
           const y = e.nativeEvent.contentOffset.y;
           scrollY.current = y;
           const scrollable = contentHeight.current - viewportHeight.current;
-          setScrollPercent(scrollable > 0 ? Math.min(100, Math.round((y / scrollable) * 100)) : 0);
+          const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((y / scrollable) * 100))) : 0;
+          setScrollPercent(percent);
+          scheduleScrollSave(percent);
         }}
         scrollEventThrottle={16}
-        onContentSizeChange={(_w, h) => { contentHeight.current = h; }}
-        onLayout={(e) => { viewportHeight.current = e.nativeEvent.layout.height; }}
+        onContentSizeChange={(_w, h) => { contentHeight.current = h; tryRestoreScroll(); }}
+        onLayout={(e) => { viewportHeight.current = e.nativeEvent.layout.height; tryRestoreScroll(); }}
       >
         {detail.blocks.map((block, index) =>
           block.type === "explainer" ? (
@@ -403,8 +467,12 @@ function QuestSection({ topicId, documentId }: { topicId: string; documentId?: s
   const quests: Quest[] = [
     { id: "quiz", label: "Quiz", emoji: "🧠", locked: false, bg: "#cbc4e1", fg: "#1f2184",
       onPress: () => router.push({ pathname: "/quiz/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
-    { id: "longform", label: "Long Answer", emoji: "✍️", locked: true, bg: "#cbe1c3", fg: "#255312" },
-    { id: "minigame", label: "Minigame", emoji: "🎮", locked: true, bg: "#ce9eaa", fg: "#420000" },
+    { id: "longform", label: "Long Answer", emoji: "✍️", locked: false, bg: "#cbe1c3", fg: "#255312",
+      onPress: () => router.push({ pathname: "/longform/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
+    { id: "minigame", label: "Term Match", emoji: "🎮", locked: false, bg: "#ce9eaa", fg: "#420000",
+      onPress: () => router.push({ pathname: "/minigame/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
+    { id: "recall", label: "Recall Rush", emoji: "⚡", locked: false, bg: "#e1d7bb", fg: "#4a3a00",
+      onPress: () => router.push({ pathname: "/recall-rush/[topicId]", params: { topicId, documentId: documentId ?? "" } }) },
   ];
 
   return (

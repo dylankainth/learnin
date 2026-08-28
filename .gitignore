@@ -19,3 +19,6 @@ ios/
 # misc
 .DS_Store
 *.log
+
+# IDE
+.idea/

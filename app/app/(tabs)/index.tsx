@@ -16,6 +16,7 @@ import { useFocusEffect, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useOnReconnect } from "@/lib/connectivity";
 import type { Topic, ReviewStats } from "@/lib/types";
 
 const { width: W } = Dimensions.get("window");
@@ -137,6 +138,7 @@ export default function HomeScreen() {
   }, [loadReadingSpeed]);
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
+  useOnReconnect(useCallback(() => { load().catch(() => {}); }, [load]));
 
   async function onRefresh() {
     setRefreshing(true);
@@ -247,7 +249,7 @@ export default function HomeScreen() {
             <Text style={styles.quizQuestion} numberOfLines={2}>{nextTopic.name}</Text>
             <Text style={styles.quizSub}>{nextTopic.content_count} items · {nextTopic.card_count} cards</Text>
             <View style={styles.quizBtns}>
-              <Pressable style={styles.btnDark} onPress={() => router.push(`/topic/${nextTopic.id}`)}>
+              <Pressable style={styles.btnDark} onPress={() => router.push(`/study/${nextTopic.id}`)}>
                 <Text style={styles.btnDarkText}>Study</Text>
               </Pressable>
               <Pressable style={styles.btnLight} onPress={() => router.push("/create-topic")}>

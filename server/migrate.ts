@@ -58,6 +58,8 @@ async function main() {
       { name: "name", type: "text" },
       { name: "description", type: "text" },
       { name: "color_accent", type: "text" },
+      { name: "last_scroll_percent", type: "number" },
+      { name: "last_scroll_at", type: "date" },
     ]);
 
     // Add topic_id to documents if missing
@@ -92,6 +94,21 @@ async function main() {
       { name: "question_type", type: "text" },
       { name: "elaboration_prompt", type: "text" },
       { name: "difficulty", type: "number" },
+    ]);
+
+    await upsertCollection(pb, "longform_questions", [
+      { name: "user_id", type: "text" },
+      { name: "topic_id", type: "text" },
+      { name: "document_id", type: "text" },
+      { name: "question", type: "text" },
+      { name: "key_points", type: "json" },
+      { name: "answer", type: "text" },
+      { name: "score", type: "number" },
+      { name: "verdict", type: "text" },
+      { name: "feedback", type: "text" },
+      { name: "strengths", type: "json" },
+      { name: "missed_points", type: "json" },
+      { name: "answered_at", type: "date" },
     ]);
 
     console.log("\n✅ Migration complete!");

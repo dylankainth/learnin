@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import { ClientResponseError } from "pocketbase";
 import { ensureSuperuserAuth, pb } from "../services/pocketbase.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { enqueueIngest } from "../services/queue.js";
@@ -16,47 +17,88 @@ const PDF_TYPES = new Set(["application/pdf"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"]);
 
 documentsRouter.post("/", upload.single("file"), async (req: AuthedRequest, res) => {
-  const file = req.file;
-  const title = typeof req.body.title === "string" && req.body.title.trim() ? req.body.title.trim() : file?.originalname;
-  const topicId = typeof req.body.topic_id === "string" ? req.body.topic_id : null;
-  const integrationMode = req.body.integration_mode === "arrange" ? "arrange" : "append";
-  if (!file) {
-    res.status(400).json({ error: "No file uploaded (expected multipart field 'file')" });
-    return;
+  try {
+    const file = req.file;
+    const title = typeof req.body.title === "string" && req.body.title.trim() ? req.body.title.trim() : file?.originalname;
+    const topicId = typeof req.body.topic_id === "string" ? req.body.topic_id : null;
+    const integrationMode = req.body.integration_mode === "arrange" ? "arrange" : "append";
+    if (!file) {
+      res.status(400).json({ error: "No file uploaded (expected multipart field 'file')" });
+      return;
+    }
+
+    let sourceType: "pdf" | "video";
+    if (PDF_TYPES.has(file.mimetype)) sourceType = "pdf";
+    else if (VIDEO_TYPES.has(file.mimetype)) sourceType = "video";
+    else {
+      res.status(400).json({ error: `Unsupported file type: ${file.mimetype}` });
+      return;
+    }
+
+    await ensureSuperuserAuth();
+
+    const form = new FormData();
+    form.append("user_id", req.userId!);
+    form.append("title", title!);
+    form.append("source_type", sourceType);
+    form.append("original_filename", file.originalname);
+    form.append("status", "pending");
+    form.append("integration_mode", integrationMode);
+    if (topicId) form.append("topic_id", topicId);
+    form.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
+
+    let doc;
+    try {
+      doc = await pb.collection("documents").create(form);
+    } catch (err) {
+      console.error("Failed to save uploaded document to PocketBase:", err);
+      // A ClientResponseError here almost always means PocketBase itself
+      // rejected the upload (e.g. its own max file size) — surface that
+      // reason to the client instead of a generic failure.
+      const message =
+        err instanceof ClientResponseError
+          ? err.response?.data?.file?.message || err.message
+          : "Failed to save the uploaded file";
+      res.status(err instanceof ClientResponseError ? 400 : 502).json({ error: message });
+      return;
+    }
+
+    try {
+      await enqueueIngest(doc.id);
+    } catch (err) {
+      // The document itself was saved fine — only queueing the background
+      // processing job failed (e.g. Redis hiccup). Tell the client so the
+      // upload isn't silently stuck at "pending" forever, but don't undo
+      // the save; it can be re-enqueued later.
+      console.error(`Document ${doc.id} saved but failed to enqueue ingest job:`, err);
+      res.status(202).json({
+        document: {
+          id: doc.id,
+          title: doc.title,
+          source_type: doc.source_type,
+          status: doc.status,
+          created_at: doc.created,
+          topic_id: doc.topic_id,
+        },
+        warning: "Upload saved, but processing couldn't be queued yet. It will need to be retried.",
+      });
+      return;
+    }
+
+    res.status(201).json({
+      document: {
+        id: doc.id,
+        title: doc.title,
+        source_type: doc.source_type,
+        status: doc.status,
+        created_at: doc.created,
+        topic_id: doc.topic_id,
+      },
+    });
+  } catch (err) {
+    console.error("Unexpected error handling document upload:", err);
+    res.status(500).json({ error: "Failed to upload document" });
   }
-
-  let sourceType: "pdf" | "video";
-  if (PDF_TYPES.has(file.mimetype)) sourceType = "pdf";
-  else if (VIDEO_TYPES.has(file.mimetype)) sourceType = "video";
-  else {
-    res.status(400).json({ error: `Unsupported file type: ${file.mimetype}` });
-    return;
-  }
-
-  await ensureSuperuserAuth();
-
-  const form = new FormData();
-  form.append("user_id", req.userId!);
-  form.append("title", title!);
-  form.append("source_type", sourceType);
-  form.append("original_filename", file.originalname);
-  form.append("status", "pending");
-  form.append("integration_mode", integrationMode);
-  if (topicId) form.append("topic_id", topicId);
-  form.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
-
-  const doc = await pb.collection("documents").create(form);
-  await enqueueIngest(doc.id);
-  res.status(201).json({
-    document: {
-      id: doc.id,
-      title: doc.title,
-      source_type: doc.source_type,
-      status: doc.status,
-      created_at: doc.created,
-      topic_id: doc.topic_id,
-    },
-  });
 });
 
 documentsRouter.get("/", async (req: AuthedRequest, res) => {

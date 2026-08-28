@@ -1,8 +1,11 @@
 import Constants from "expo-constants";
+import { cachedRequest } from "./offlineCache";
 import type {
   DocumentDetail,
   DocumentSummary,
   DueCard,
+  LongformGradeResult,
+  LongformQuestion,
   NotificationPrefs,
   ReviewStats,
   Topic,
@@ -48,8 +51,8 @@ export const api = {
   updateMe: (body: Partial<{ name: string; goal: string | null }>) =>
     request<void>("/me", { method: "PATCH", body: JSON.stringify(body) }),
   topics: {
-    list: () => request<{ topics: Topic[] }>("/topics"),
-    get: (id: string) => request<TopicDetail>(`/topics/${id}`),
+    list: () => cachedRequest("topics:list", () => request<{ topics: Topic[] }>("/topics")),
+    get: (id: string) => cachedRequest(`topics:get:${id}`, () => request<TopicDetail>(`/topics/${id}`)),
     create: (name: string, description?: string) =>
       request<{ topic: Topic }>("/topics", {
         method: "POST",
@@ -61,7 +64,12 @@ export const api = {
         body: JSON.stringify({ name, description }),
       }),
     delete: (id: string) => request<void>(`/topics/${id}`, { method: "DELETE" }),
-    study: (id: string) => request<TopicStudyDetail>(`/topics/${id}/study`),
+    study: (id: string) => cachedRequest(`topics:study:${id}`, () => request<TopicStudyDetail>(`/topics/${id}/study`)),
+    saveScroll: (id: string, percent: number) =>
+      request<{ ok: boolean }>(`/topics/${id}/scroll`, {
+        method: "PATCH",
+        body: JSON.stringify({ percent }),
+      }),
   },
   blocks: {
     lock: (id: string) => request<{ ok: boolean }>(`/blocks/${id}/lock`, { method: "PATCH" }),
@@ -70,8 +78,10 @@ export const api = {
   },
   documents: {
     list: (topicId?: string) =>
-      request<{ documents: DocumentSummary[] }>(`/documents${topicId ? `?topicId=${topicId}` : ""}`),
-    get: (id: string) => request<DocumentDetail>(`/documents/${id}`),
+      cachedRequest(`documents:list:${topicId ?? "all"}`, () =>
+        request<{ documents: DocumentSummary[] }>(`/documents${topicId ? `?topicId=${topicId}` : ""}`),
+      ),
+    get: (id: string) => cachedRequest(`documents:get:${id}`, () => request<DocumentDetail>(`/documents/${id}`)),
     upload: (form: FormData) => request<{ document: DocumentSummary }>("/documents", { method: "POST", body: form }),
     remove: (id: string) => request<void>(`/documents/${id}`, { method: "DELETE" }),
   },
@@ -80,9 +90,11 @@ export const api = {
       const params = new URLSearchParams({ limit: String(limit) });
       if (filters?.documentId) params.append("documentId", filters.documentId);
       if (filters?.topicId) params.append("topicId", filters.topicId);
-      return request<{ cards: DueCard[] }>(`/review/due?${params.toString()}`);
+      return cachedRequest(`review:due:${params.toString()}`, () =>
+        request<{ cards: DueCard[] }>(`/review/due?${params.toString()}`),
+      );
     },
-    stats: () => request<ReviewStats>("/review/stats"),
+    stats: () => cachedRequest("review:stats", () => request<ReviewStats>("/review/stats")),
     submit: (cardId: string, rating: 1 | 2 | 3 | 4, confidence?: number) =>
       request<{ dueAt: string; intervalDays: number }>(`/review/${cardId}`, {
         method: "POST",
@@ -95,6 +107,18 @@ export const api = {
         `/review/quiz?${params.toString()}`
       );
     },
+    longform: {
+      generate: (topicId: string, documentId?: string, count = 3) =>
+        request<{ questions: LongformQuestion[] }>("/review/longform/generate", {
+          method: "POST",
+          body: JSON.stringify({ topicId, documentId, count }),
+        }),
+      submit: (id: string, answer: string) =>
+        request<LongformGradeResult>(`/review/longform/${id}/submit`, {
+          method: "POST",
+          body: JSON.stringify({ answer }),
+        }),
+    },
   },
   notifications: {
     register: (expoPushToken: string) =>
@@ -106,11 +130,21 @@ export const api = {
       request<void>("/notifications/quiz-complete", { method: "POST", body: JSON.stringify(body) }),
   },
   progress: {
-    heatmap: (days = 90) => request<{ heatmap: { date: string; count: number }[] }>(`/progress/heatmap?days=${days}`),
+    heatmap: (days = 90) =>
+      cachedRequest(`progress:heatmap:${days}`, () =>
+        request<{ heatmap: { date: string; count: number }[] }>(`/progress/heatmap?days=${days}`),
+      ),
     retention: () =>
-      request<{ studied: number; lapsed: number; avgReps: number; retentionRate: number; total: number; correct: number }>("/progress/retention"),
+      cachedRequest("progress:retention", () =>
+        request<{ studied: number; lapsed: number; avgReps: number; retentionRate: number; total: number; correct: number }>(
+          "/progress/retention",
+        ),
+      ),
     seedSampleData: () => request<{ seeded: number }>("/progress/seed-sample-data", { method: "POST" }),
-    firstUnderstanding: () => request<{ rate: number; correct: number; total: number }>("/progress/first-understanding"),
+    firstUnderstanding: () =>
+      cachedRequest("progress:first-understanding", () =>
+        request<{ rate: number; correct: number; total: number }>("/progress/first-understanding"),
+      ),
   },
   chat: {
     start: (documentId: string) =>

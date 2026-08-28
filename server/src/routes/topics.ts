@@ -255,6 +255,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
         name: topic.name,
         description: topic.description || undefined,
         color_accent: topic.color_accent,
+        lastScrollPercent: topic.last_scroll_percent ?? 0,
       },
       processingCount,
       blocks: readyBlocks.map((block) => {
@@ -276,6 +277,38 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
   } catch (err) {
     console.error("Failed to fetch topic study:", err);
     res.status(500).json({ error: "Failed to fetch topic study" });
+  }
+});
+
+const scrollSchema = z.object({
+  percent: z.number().min(0).max(100),
+});
+
+topicsRouter.patch("/:id/scroll", async (req: AuthedRequest, res) => {
+  const { id } = req.params;
+  const parsed = scrollSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  await ensureSuperuserAuth();
+  try {
+    const topic = await pb.collection("topics").getOne(id);
+    if (topic.user_id !== req.userId) {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
+
+    await pb.collection("topics").update(id, {
+      last_scroll_percent: parsed.data.percent,
+      last_scroll_at: new Date(),
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Failed to save scroll position:", err);
+    res.status(500).json({ error: "Failed to save scroll position" });
   }
 });
 

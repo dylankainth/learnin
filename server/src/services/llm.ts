@@ -33,6 +33,14 @@ const explainerBlock = z.object({
     "Use `inline code` for technical terms, variable names, formulas. " +
     "Use fenced code blocks (```language\\n...\\n```) for multi-line code or pseudocode. " +
     "Use - bullet lists for enumerable items; use 1. numbered lists for steps or ranked items. " +
+    "When the section describes a process, workflow, sequence of steps, decision logic, system architecture, " +
+    "hierarchy/taxonomy, state machine, or the relationships between several named things, include one small " +
+    "```mermaid\\n...\\n``` diagram (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, or graph) right " +
+    "after the paragraph it illustrates — but only when a diagram would genuinely clarify structure a reader " +
+    "would otherwise have to hold in their head; skip it for sections that are purely descriptive or narrative. " +
+    "Never invent structure the source doesn't support just to include a diagram. Keep diagrams small (roughly " +
+    "3-8 nodes) and use short, plain-text labels — mermaid syntax is strict, so double-check node/edge syntax " +
+    "is valid and avoid parentheses, colons, or quotes inside unquoted labels. " +
     "Aim for 200-600 words — enough to thoroughly cover the idea with examples. " +
     "Do NOT add a quiz question inside this block.",
   ),
@@ -82,6 +90,7 @@ CRITICAL — block types: The blocks array may only contain objects with type "e
 Rules:
 - Cover the source material faithfully and completely — do not skip topics or invent content.
 - type "explainer": rich markdown for one major section. Start the markdown with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each). Use **bold** for key terms on first use, *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Aim for 200-600 words per explainer block.
+- Diagrams: when a section describes a process, workflow, decision logic, system architecture, hierarchy, state machine, or how several named things relate, add one compact \`\`\`mermaid fenced diagram (flowchart/graph, sequenceDiagram, classDiagram, or stateDiagram-v2) right after the paragraph it illustrates. Only do this where a diagram genuinely clarifies structure — never force one into a purely narrative section, and never invent structure the source doesn't support. Keep it small (about 3-8 nodes), use short plain-text labels, and keep the mermaid syntax strictly valid (avoid parentheses/colons/quotes in unquoted labels).
 - type "quiz": placed after each explainer block at the section boundary. Test genuine understanding, not surface recall. Vary between multiple-choice (options array) and free-recall (options: null).
 - Do not ask quiz questions about topics not yet explained.
 - Respond with JSON only, matching the given schema exactly.`;
@@ -228,6 +237,143 @@ export async function arrangeTopicBlocks(
     }));
   }
   return result.data.placements;
+}
+
+const longformQuestionSchema = z.object({
+  question: z.string().describe(
+    "An open-ended essay-style question that requires a multi-sentence written answer synthesizing " +
+    "concepts from the material — not answerable with a single word or fact.",
+  ),
+  key_points: z
+    .array(z.string())
+    .min(2)
+    .max(6)
+    .describe("2-6 distinct points a strong answer should cover. Used as a grading rubric — not shown to the student before they answer."),
+});
+
+const longformQuestionsResultSchema = z.object({
+  questions: z.array(longformQuestionSchema).describe("The generated long-answer questions."),
+});
+
+export type LongformQuestion = z.infer<typeof longformQuestionSchema>;
+
+const LONGFORM_QUESTIONS_JSON_SCHEMA = toStrictJsonSchema(longformQuestionsResultSchema);
+
+/**
+ * Generates open-ended essay-style questions from a topic's study material,
+ * each with a short rubric of key points a strong answer should hit.
+ */
+export async function generateLongformQuestions(
+  title: string,
+  content: string,
+  count: number,
+): Promise<LongformQuestion[]> {
+  const text = content.trim().slice(0, SINGLE_SHOT_CHAR_BUDGET);
+  if (!text) {
+    throw new Error("No study material available to generate questions from");
+  }
+
+  const completion = await client.chat.completions.create({
+    model: env.openRouterModel,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert instructor writing essay-style long-answer questions to test deep, synthesized understanding of study material — the kind of question that can't be answered in one word and rewards explaining connections, reasoning, and examples. " +
+          "Spread questions across different parts of the material rather than clustering on one section. Respond with JSON only, matching the given schema exactly.",
+      },
+      {
+        role: "user",
+        content: `Topic: ${title}\n\nStudy material:\n\n${text}\n\nWrite ${count} long-answer question${count === 1 ? "" : "s"}.`,
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "longform_questions", strict: true, schema: LONGFORM_QUESTIONS_JSON_SCHEMA },
+    },
+  });
+
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) throw new Error("OpenRouter returned no content for long-answer question generation");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("OpenRouter did not return valid JSON for long-answer question generation");
+  }
+
+  const result = longformQuestionsResultSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error(`OpenRouter response didn't match the expected schema: ${result.error.message}`);
+  }
+  return result.data.questions;
+}
+
+const longformGradeSchema = z.object({
+  score: z.number().describe("Overall quality score from 0 to 100."),
+  verdict: z
+    .enum(["excellent", "good", "needs_work", "incorrect"])
+    .describe("excellent: 85-100, good: 60-84, needs_work: 30-59, incorrect: 0-29."),
+  feedback: z.string().describe("2-4 sentences of direct, encouraging feedback addressed to the student."),
+  strengths: z.array(z.string()).describe("What the answer got right. Empty array if none."),
+  missed_points: z.array(z.string()).describe("Key points from the rubric the answer missed or got wrong. Empty array if none."),
+});
+
+export type LongformGrade = z.infer<typeof longformGradeSchema>;
+
+const LONGFORM_GRADE_JSON_SCHEMA = toStrictJsonSchema(longformGradeSchema);
+
+/**
+ * Grades a student's free-form written answer against a question and its
+ * rubric key points, returning a score plus qualitative feedback.
+ */
+export async function gradeLongformAnswer(
+  question: string,
+  keyPoints: string[],
+  userAnswer: string,
+): Promise<LongformGrade> {
+  const completion = await client.chat.completions.create({
+    model: env.openRouterModel,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a fair, encouraging instructor grading a student's written answer to an essay-style question. " +
+          "Judge understanding and reasoning, not writing style or exact wording. Partial credit for partially correct or incomplete answers. " +
+          "Respond with JSON only, matching the given schema exactly.",
+      },
+      {
+        role: "user",
+        content:
+          `Question: ${question}\n\n` +
+          `Rubric — key points a strong answer should cover:\n${keyPoints.map((p) => `- ${p}`).join("\n")}\n\n` +
+          `Student's answer:\n${userAnswer.trim() || "(no answer given)"}\n\n` +
+          "Grade this answer.",
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "longform_grade", strict: true, schema: LONGFORM_GRADE_JSON_SCHEMA },
+    },
+  });
+
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) throw new Error("OpenRouter returned no content for long-answer grading");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("OpenRouter did not return valid JSON for long-answer grading");
+  }
+
+  const result = longformGradeSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error(`OpenRouter response didn't match the expected schema: ${result.error.message}`);
+  }
+  const score = Math.max(0, Math.min(100, Math.round(result.data.score)));
+  return { ...result.data, score };
 }
 
 /**

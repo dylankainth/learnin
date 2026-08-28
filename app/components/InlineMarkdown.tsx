@@ -4,6 +4,7 @@ import Markdown, { renderRules } from "react-native-markdown-display";
 import { api } from "@/lib/api";
 import { colors } from "@/theme/colors";
 import { fonts, serifFonts } from "@/theme/typography";
+import { MermaidDiagram } from "@/components/MermaidDiagram";
 
 function TappableItem({
   children,
@@ -242,6 +243,17 @@ export function InlineMarkdown({
             {(renderRules.list_item as any)(node, children, parent, styles, inheritedStyles)}
           </TappableItem>
         );
+      },
+      fence: (node: any, children: React.ReactNode, parent: any, styles: any, inheritedStyles: any) => {
+        const lang = (node.sourceInfo || "").trim().toLowerCase();
+        if (lang === "mermaid") {
+          const content =
+            typeof node.content === "string" && node.content.endsWith("\n")
+              ? node.content.slice(0, -1)
+              : node.content;
+          return <MermaidDiagram key={node.key} source={content} />;
+        }
+        return (renderRules.fence as any)(node, children, parent, styles, inheritedStyles);
       },
     }),
     [readSet, toggleElement],

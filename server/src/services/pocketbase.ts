@@ -98,6 +98,8 @@ export async function ensureCollections(): Promise<void> {
     { name: "name", type: "text" },
     { name: "description", type: "text" },
     { name: "color_accent", type: "text" },
+    { name: "last_scroll_percent", type: "number" },
+    { name: "last_scroll_at", type: "date" },
   ]);
 
   await upsertCollection("documents", [
@@ -173,5 +175,20 @@ export async function ensureCollections(): Promise<void> {
     { name: "user_id", type: "text" },
     { name: "block_id", type: "text" },
     { name: "paragraph_indices", type: "json" },
+  ]);
+
+  await upsertCollection("longform_questions", [
+    { name: "user_id", type: "text" },
+    { name: "topic_id", type: "text" },
+    { name: "document_id", type: "text" },
+    { name: "question", type: "text" },
+    { name: "key_points", type: "json" },
+    { name: "answer", type: "text" },
+    { name: "score", type: "number" },
+    { name: "verdict", type: "text" },
+    { name: "feedback", type: "text" },
+    { name: "strengths", type: "json" },
+    { name: "missed_points", type: "json" },
+    { name: "answered_at", type: "date" },
   ]);
 }
