@@ -8,6 +8,7 @@ interface FieldDef {
   name: string;
   type: "text" | "bool" | "number" | "json" | "file" | "date";
   maxSelect?: number;
+  maxSize?: number;
 }
 
 async function upsertCollection(pb: PocketBase, name: string, fields: FieldDef[], type: "base" | "auth" = "base"): Promise<void> {
@@ -27,9 +28,25 @@ async function upsertCollection(pb: PocketBase, name: string, fields: FieldDef[]
 
   const existingNames = new Set(existing.fields.map((f) => f.name));
   const missing = fields.filter((f) => !existingNames.has(f.name));
-  if (missing.length > 0) {
-    console.log(`Adding missing fields to ${name}:`, missing.map((f) => f.name));
-    await pb.collections.update(existing.id, { fields: [...existing.fields, ...missing] });
+
+  // Reconcile maxSize on fields that already exist — a field's options are
+  // only ever set on creation, so a later bump here would otherwise never
+  // take effect on a collection that already exists (e.g. `documents.file`
+  // stuck at PocketBase's 5MB default).
+  let sizeChanged = false;
+  const reconciled = existing.fields.map((f) => {
+    const desired = fields.find((d) => d.name === f.name);
+    if (desired?.maxSize !== undefined && f.maxSize !== desired.maxSize) {
+      sizeChanged = true;
+      return { ...f, maxSize: desired.maxSize };
+    }
+    return f;
+  });
+
+  if (missing.length > 0 || sizeChanged) {
+    if (missing.length > 0) console.log(`Adding missing fields to ${name}:`, missing.map((f) => f.name));
+    if (sizeChanged) console.log(`Updating field size limits on ${name}`);
+    await pb.collections.update(existing.id, { fields: [...reconciled, ...missing] });
     console.log(`✓ Updated collection: ${name}`);
   } else {
     console.log(`✓ Collection already exists: ${name}`);
@@ -68,7 +85,7 @@ async function main() {
       { name: "title", type: "text" },
       { name: "source_type", type: "text" },
       { name: "original_filename", type: "text" },
-      { name: "file", type: "file", maxSelect: 1 },
+      { name: "file", type: "file", maxSelect: 1, maxSize: 1024 * 1024 * 1024 }, // 1GB, matches the multer limit in documents.ts
       { name: "status", type: "text" },
       { name: "error_message", type: "text" },
       { name: "topic_id", type: "text" },
