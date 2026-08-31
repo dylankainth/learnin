@@ -3,13 +3,17 @@
     "name": "Sea Sponge",
     "slug": "sea-sponge",
     "scheme": "seasponge",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/appicon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "android": {
       "package": "com.seasponge.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/appicon.png",
+        "backgroundColor": "#9ECEC2"
+      },
       "permissions": [
         "NOTIFICATIONS"
       ]

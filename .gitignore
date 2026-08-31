@@ -19,6 +19,7 @@ ios/
 # misc
 .DS_Store
 *.log
+*.apk
 
 # IDE
 .idea/
