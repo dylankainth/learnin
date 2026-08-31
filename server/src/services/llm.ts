@@ -25,22 +25,32 @@ const CHUNK_CHAR_BUDGET = 40_000;
 const explainerBlock = z.object({
   type: z.literal("explainer"),
   markdown: z.string().describe(
-    "Rich markdown for one major section of the document. " +
+    "Rich markdown for one major section of the document, written like a teacher explaining the idea out " +
+    "loud to a curious student — not like a textbook summarizing it. " +
     "Start with a ## heading for the section title. " +
     "Use ### for subsections and #### for sub-subsections if the section warrants it. " +
-    "Write in full paragraphs (3-6 sentences each) separated by blank lines. " +
-    "Use **bold** for key terms on first introduction, *italic* for emphasis and titles. " +
+    "Write in full paragraphs (3-6 sentences each) separated by blank lines, in a natural, spoken-explanation " +
+    "register: short connecting sentences, not a wall of dense claims. Explain what a term means and why it " +
+    "matters before naming it, then **bold** it on that first mention — don't bold every technical noun that " +
+    "follows, and don't let the passage turn into a list of named frameworks. " +
+    "Use *italic* for emphasis and titles. " +
     "Use `inline code` for technical terms, variable names, formulas. " +
     "Use fenced code blocks (```language\\n...\\n```) for multi-line code or pseudocode. " +
     "Use - bullet lists for enumerable items; use 1. numbered lists for steps or ranked items. " +
     "When the section describes a process, workflow, sequence of steps, decision logic, system architecture, " +
     "hierarchy/taxonomy, state machine, or the relationships between several named things, include one small " +
     "```mermaid\\n...\\n``` diagram (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, or graph) right " +
-    "after the paragraph it illustrates — but only when a diagram would genuinely clarify structure a reader " +
-    "would otherwise have to hold in their head; skip it for sections that are purely descriptive or narrative. " +
-    "Never invent structure the source doesn't support just to include a diagram. Keep diagrams small (roughly " +
-    "3-8 nodes) and use short, plain-text labels — mermaid syntax is strict, so double-check node/edge syntax " +
-    "is valid and avoid parentheses, colons, or quotes inside unquoted labels. " +
+    "after the paragraph it illustrates. " +
+    "When the section instead describes how something changes, grows, matures, or declines over time — an " +
+    "S-curve, adoption curve, exponential or diminishing trend, learning curve, or any other named curve or " +
+    "cycle — actually plot it with a ```mermaid\\nxychart-beta\\n...\\n``` chart right after the paragraph, " +
+    "using illustrative, roughly-correct values and axis/stage labels drawn from the text, instead of only " +
+    "describing its shape in prose. " +
+    "Only include a diagram when it would genuinely clarify structure or a trend a reader would otherwise have " +
+    "to hold in their head; skip it for sections that are purely descriptive or narrative. " +
+    "Never invent structure or data the source doesn't support just to include a diagram. Keep diagrams small " +
+    "(roughly 3-8 nodes or data points) and use short, plain-text labels — mermaid syntax is strict, so double-" +
+    "check node/edge/chart syntax is valid and avoid parentheses, colons, or quotes inside unquoted labels. " +
     "Aim for 200-600 words — enough to thoroughly cover the idea with examples. " +
     "Do NOT add a quiz question inside this block.",
   ),
@@ -83,14 +93,23 @@ function toStrictJsonSchema(schema: z.ZodType): Record<string, unknown> {
 
 const CHUNK_RESULT_JSON_SCHEMA = toStrictJsonSchema(chunkResultSchema);
 
-const SYSTEM_PROMPT = `You are an expert author turning raw lecture material into a polished, book-quality study document — think a well-written textbook chapter or a high-quality online course page.
+const SYSTEM_PROMPT = `You are a warm, sharp teacher walking a student through this material one idea at a time — not an author summarizing a textbook chapter. Picture explaining it out loud to someone smart but new to the topic: build intuition before naming things, favor plain language over jargon, and let examples and "why this matters" carry as much weight as definitions. If a passage reads like a glossary entry or a Wikipedia summary, rewrite it as an explanation.
 
 CRITICAL — block types: The blocks array may only contain objects with type "explainer" or type "quiz". No other type values are valid. Do not use "section", "heading", "text", "paragraph", or anything else.
 
 Rules:
 - Cover the source material faithfully and completely — do not skip topics or invent content.
-- type "explainer": rich markdown for one major section. Start the markdown with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each). Use **bold** for key terms on first use, *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Aim for 200-600 words per explainer block.
-- Diagrams: when a section describes a process, workflow, decision logic, system architecture, hierarchy, state machine, or how several named things relate, add one compact \`\`\`mermaid fenced diagram (flowchart/graph, sequenceDiagram, classDiagram, or stateDiagram-v2) right after the paragraph it illustrates. Only do this where a diagram genuinely clarifies structure — never force one into a purely narrative section, and never invent structure the source doesn't support. Keep it small (about 3-8 nodes), use short plain-text labels, and keep the mermaid syntax strictly valid (avoid parentheses/colons/quotes in unquoted labels).
+- type "explainer": rich markdown for one major section. Start the markdown with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each) in a natural, spoken-explanation register — short connecting sentences, not a wall of dense claims stitched together. Introduce a term by explaining what it means and why it exists before naming it, then **bold** it on that first mention; don't bold every technical noun that follows, and don't let a passage collapse into a list of named frameworks or citations. Use *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Prefer one well-explained example over a catalog of named concepts. Aim for 200-600 words per explainer block.
+- Diagrams — structure: when a section describes a process, workflow, decision logic, system architecture, hierarchy, state machine, or how several named things relate, add one compact \`\`\`mermaid fenced diagram (flowchart/graph, sequenceDiagram, classDiagram, or stateDiagram-v2) right after the paragraph it illustrates.
+- Diagrams — trends and curves: when a section instead describes how something changes, grows, matures, or declines over time — an S-curve, adoption curve, exponential or diminishing trend, learning curve, or any other named curve or cycle — actually draw it with a \`\`\`mermaid xychart-beta chart right after the paragraph, instead of only describing its shape in prose. Use illustrative, roughly-correct values and label axes/stages from the text, e.g.:
+  \`\`\`mermaid
+  xychart-beta
+      title "Technology S-Curve"
+      x-axis [Emergence, Growth, Maturity, Decline]
+      y-axis "Performance" 0 --> 100
+      line [5, 35, 85, 95]
+  \`\`\`
+- Only include a diagram where it genuinely clarifies structure or a trend a reader would otherwise have to hold in their head — never force one into a purely narrative section, and never invent structure or data the source doesn't support. Keep diagrams small (about 3-8 nodes or data points), use short plain-text labels, and keep the mermaid syntax strictly valid (avoid parentheses/colons/quotes in unquoted labels).
 - type "quiz": placed after each explainer block at the section boundary. Test genuine understanding, not surface recall. Vary between multiple-choice (options array) and free-recall (options: null).
 - Do not ask quiz questions about topics not yet explained.
 - Respond with JSON only, matching the given schema exactly.`;
