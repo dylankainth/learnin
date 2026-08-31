@@ -22,35 +22,13 @@ const client = new OpenAI({
 const SINGLE_SHOT_CHAR_BUDGET = 60_000;
 const CHUNK_CHAR_BUDGET = 40_000;
 
+// Shapes of the two block types the app stores and renders (see `flattenSections`
+// below for how generation actually produces them — this pair only exists for
+// the exported ExplainerBlock/QuizBlock/GeneratedBlock types the rest of the
+// codebase imports).
 const explainerBlock = z.object({
   type: z.literal("explainer"),
-  markdown: z.string().describe(
-    "Rich markdown for one major section of the document. " +
-    "Start with a ## heading for the section title. " +
-    "Use ### for subsections and #### for sub-subsections if the section warrants it. " +
-    "Write in full paragraphs (3-6 sentences each) separated by blank lines. " +
-    "Use **bold** for key terms on first introduction, *italic* for emphasis and titles. " +
-    "Use `inline code` for technical terms, variable names, formulas. " +
-    "Use fenced code blocks (```language\\n...\\n```) for multi-line code or pseudocode. " +
-    "Use - bullet lists for enumerable items; use 1. numbered lists for steps or ranked items. " +
-    "Math and formal notation: the renderer is plain markdown with NO LaTeX/KaTeX/MathJax support, so raw LaTeX " +
-    "commands (\\Sigma, \\langle, \\varepsilon, \\times, \\rightarrow, $...$, \\(...\\), etc.) render as literal " +
-    "backslashed text, not symbols — never write them. Use the actual Unicode character instead " +
-    "(Σ σ δ ε λ α β Γ Π μ θ, × ÷ ± → ⇒ ↔ ∈ ∉ ⊆ ⊂ ∪ ∩ ∅ ≤ ≥ ≠ ∀ ∃ ⟨ ⟩ ∞ …) and wrap the whole expression in " +
-    "`inline code` so it reads as notation, e.g. `A = ⟨Σ, Q, q₀, F, δ⟩` or `δ: Q × Σ → Q`. Superscript/subscript " +
-    "characters (⁰¹²³ⁿ, ₀₁₂ᵢⱼ) are fine inline; for anything that doesn't have a clean Unicode form, spell it out " +
-    "in words instead of falling back to LaTeX. " +
-    "When the section describes a process, workflow, sequence of steps, decision logic, system architecture, " +
-    "hierarchy/taxonomy, state machine, or the relationships between several named things, include one small " +
-    "```mermaid\\n...\\n``` diagram (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, or graph) right " +
-    "after the paragraph it illustrates — but only when a diagram would genuinely clarify structure a reader " +
-    "would otherwise have to hold in their head; skip it for sections that are purely descriptive or narrative. " +
-    "Never invent structure the source doesn't support just to include a diagram. Keep diagrams small (roughly " +
-    "3-8 nodes) and use short, plain-text labels — mermaid syntax is strict, so double-check node/edge syntax " +
-    "is valid and avoid parentheses, colons, or quotes inside unquoted labels. " +
-    "Aim for 200-600 words — enough to thoroughly cover the idea with examples. " +
-    "Do NOT add a quiz question inside this block.",
-  ),
+  markdown: z.string(),
 });
 
 const NO_LATEX_NOTE =
@@ -58,8 +36,7 @@ const NO_LATEX_NOTE =
   "(\\Sigma, \\langle, \\varepsilon, etc.) or markdown syntax (`backticks`, **bold**); write formal notation " +
   "directly with Unicode symbols (Σ σ δ ε λ α β × ÷ ± → ∈ ⊆ ∪ ∩ ∅ ≤ ≥ ≠ ⟨ ⟩) and plain punctuation instead.";
 
-const quizBlock = z.object({
-  type: z.literal("quiz"),
+const quizFields = {
   question: z.string().describe(`A recall or understanding question testing the section just above it. ${NO_LATEX_NOTE}`),
   options: z
     .array(z.string())
@@ -69,15 +46,74 @@ const quizBlock = z.object({
     .describe(`2-4 multiple choice options when that format is appropriate, otherwise null for a short free-recall answer. ${NO_LATEX_NOTE}`),
   answer: z.string().describe(`The correct answer — exact text of the correct option if options is set, otherwise a concise model answer. ${NO_LATEX_NOTE}`),
   explanation: z.string().describe(`One or two sentences explaining why the answer is correct. ${NO_LATEX_NOTE}`),
+};
+
+const quizBlock = z.object({ type: z.literal("quiz"), ...quizFields });
+
+// The model generates {markdown, quiz} pairs rather than a flat list of
+// independently-typed blocks. A flat array only *suggests* an alternating
+// explainer/quiz pattern via prompt wording — nothing stops the model from
+// drifting into "explain everything, then quiz everything" for a long
+// document, which reads fine to the model but shows up in the app as a wall
+// of text followed by a stack of quiz prompts with nothing between them.
+// Tying each quiz to its section as one JSON object makes that structurally
+// impossible: there is no array position a quiz block could end up in other
+// than right after the section it belongs to.
+const sectionSchema = z.object({
+  markdown: z.string().describe(
+    "Rich markdown for one major section of the document, written like a teacher explaining the idea out " +
+    "loud to a curious student — not like a textbook summarizing it. " +
+    "Start with a ## heading for the section title. " +
+    "Use ### for subsections and #### for sub-subsections if the section warrants it. " +
+    "Write in full paragraphs (3-6 sentences each) separated by blank lines, in a natural, spoken-explanation " +
+    "register: short connecting sentences, not a wall of dense claims. Explain what a term means and why it " +
+    "matters before naming it, then **bold** it on that first mention — don't bold every technical noun that " +
+    "follows, and don't let the passage turn into a list of named frameworks. " +
+    "Use *italic* for emphasis and titles. " +
+    "Use `inline code` for technical terms, variable names, formulas. " +
+    "Use fenced code blocks (```language\\n...\\n```) for multi-line code or pseudocode. " +
+    "Use - bullet lists for enumerable items; use 1. numbered lists for steps or ranked items. " +
+    "Math and formal notation: the renderer is plain markdown with NO LaTeX/KaTeX/MathJax support, so raw LaTeX " +
+    "commands (\\Sigma, \\langle, \\varepsilon, \\times, \\rightarrow, $...$, \\(...\\), etc.) render as literal " +
+    "backslashed text, not symbols — never write them. Use the actual Unicode character instead " +
+    "(Σ σ δ ε λ α β Γ Π μ θ, × ÷ ± → ⇒ ↔ ∈ ∉ ⊆ ⊂ ∪ ∩ ∅ ≤ ≥ ≠ ∀ ∃ ⟨ ⟩ ∞ …) and wrap the whole expression in " +
+    "`inline code`, e.g. `A = ⟨Σ, Q, q₀, F, δ⟩` or `δ: Q × Σ → Q`. Superscript/subscript characters " +
+    "(⁰¹²³ⁿ, ₀₁₂ᵢⱼ) are fine inline; for anything without a clean Unicode form, spell it out in words instead " +
+    "of falling back to LaTeX. " +
+    "When the section describes a process, workflow, sequence of steps, decision logic, system architecture, " +
+    "hierarchy/taxonomy, state machine, or the relationships between several named things, include one small " +
+    "```mermaid\\n...\\n``` diagram (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, or graph) right " +
+    "after the paragraph it illustrates. " +
+    "When the section instead describes how something changes, grows, matures, or declines over time — an " +
+    "S-curve, adoption curve, exponential or diminishing trend, learning curve, or any other named curve or " +
+    "cycle — actually plot it with a ```mermaid\\nxychart-beta\\n...\\n``` chart right after the paragraph, " +
+    "using illustrative, roughly-correct values and axis/stage labels drawn from the text, instead of only " +
+    "describing its shape in prose. " +
+    "Only include a diagram when it would genuinely clarify structure or a trend a reader would otherwise have " +
+    "to hold in their head; skip it for sections that are purely descriptive or narrative. " +
+    "Never invent structure or data the source doesn't support just to include a diagram. Keep diagrams small " +
+    "(roughly 3-8 nodes or data points) and use short, plain-text labels — mermaid syntax is strict, so double-" +
+    "check node/edge/chart syntax is valid and avoid parentheses, colons, or quotes inside unquoted labels. " +
+    "Aim for 200-600 words — enough to thoroughly cover the idea with examples. " +
+    "Do NOT add a quiz question inside this markdown — use the separate quiz field for that.",
+  ),
+  quiz: z
+    .object(quizFields)
+    .nullable()
+    .describe(
+      "A quiz testing genuine understanding of the section above (not surface recall) — vary between " +
+      "multiple-choice (options array) and free-recall (options: null). Never ask about material not yet " +
+      "covered by this or an earlier section. Set to null only for a short section where quizzing would be " +
+      "forced (e.g. a brief intro or transition) — most sections should have a quiz.",
+    ),
 });
 
 const chunkResultSchema = z.object({
-  blocks: z
-    .array(z.discriminatedUnion("type", [explainerBlock, quizBlock]))
+  sections: z
+    .array(sectionSchema)
     .describe(
-      "Ordered list of blocks. Each item MUST have type 'explainer' or type 'quiz' — no other values. " +
-      "Pattern: explainer (rich ## section) followed by quiz (at the section break), repeat. " +
-      "Prefer fewer, richer explainer blocks over many tiny ones.",
+      "Ordered list of sections covering the source material end-to-end, each pairing one rich explainer " +
+      "passage with the quiz that tests it. Prefer fewer, richer sections over many tiny ones.",
     ),
   running_summary: z
     .string()
@@ -95,16 +131,37 @@ function toStrictJsonSchema(schema: z.ZodType): Record<string, unknown> {
 
 const CHUNK_RESULT_JSON_SCHEMA = toStrictJsonSchema(chunkResultSchema);
 
-const SYSTEM_PROMPT = `You are an expert author turning raw lecture material into a polished, book-quality study document — think a well-written textbook chapter or a high-quality online course page.
+/** Turns {markdown, quiz} section pairs into the flat explainer/quiz block list the rest of the app stores and renders. */
+function flattenSections(sections: z.infer<typeof sectionSchema>[]): GeneratedBlock[] {
+  const blocks: GeneratedBlock[] = [];
+  for (const section of sections) {
+    blocks.push({ type: "explainer", markdown: section.markdown });
+    if (section.quiz) {
+      blocks.push({ type: "quiz", ...section.quiz });
+    }
+  }
+  return blocks;
+}
 
-CRITICAL — block types: The blocks array may only contain objects with type "explainer" or type "quiz". No other type values are valid. Do not use "section", "heading", "text", "paragraph", or anything else.
+const SYSTEM_PROMPT = `You are a warm, sharp teacher walking a student through this material one idea at a time — not an author summarizing a textbook chapter. Picture explaining it out loud to someone smart but new to the topic: build intuition before naming things, favor plain language over jargon, and let examples and "why this matters" carry as much weight as definitions. If a passage reads like a glossary entry or a Wikipedia summary, rewrite it as an explanation.
+
+CRITICAL — output shape: respond with a "sections" array. Each section is one object with a "markdown" field and a "quiz" field (or quiz: null) — never a flat list of separately-typed items, and never a section with no markdown.
 
 Rules:
 - Cover the source material faithfully and completely — do not skip topics or invent content.
-- type "explainer": rich markdown for one major section. Start the markdown with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each). Use **bold** for key terms on first use, *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Aim for 200-600 words per explainer block.
+- markdown: rich text for one major section. Start with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each) in a natural, spoken-explanation register — short connecting sentences, not a wall of dense claims stitched together. Introduce a term by explaining what it means and why it exists before naming it, then **bold** it on that first mention; don't bold every technical noun that follows, and don't let a passage collapse into a list of named frameworks or citations. Use *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Prefer one well-explained example over a catalog of named concepts. Aim for 200-600 words per section.
 - Math/formal notation: NEVER use LaTeX commands (\\Sigma, \\langle, \\varepsilon, \\rightarrow, $...$, etc.) — the renderer is plain markdown and shows them as literal backslashed text. Use real Unicode symbols instead (Σ σ δ ε λ α β Γ Π μ θ × ÷ ± → ⇒ ↔ ∈ ⊆ ∪ ∩ ∅ ≤ ≥ ≠ ∀ ∃ ⟨ ⟩ ∞) wrapped in \`inline code\`, e.g. \`A = ⟨Σ, Q, q₀, F, δ⟩\`.
-- Diagrams: when a section describes a process, workflow, decision logic, system architecture, hierarchy, state machine, or how several named things relate, add one compact \`\`\`mermaid fenced diagram (flowchart/graph, sequenceDiagram, classDiagram, or stateDiagram-v2) right after the paragraph it illustrates. Only do this where a diagram genuinely clarifies structure — never force one into a purely narrative section, and never invent structure the source doesn't support. Keep it small (about 3-8 nodes), use short plain-text labels, and keep the mermaid syntax strictly valid (avoid parentheses/colons/quotes in unquoted labels).
-- type "quiz": placed after each explainer block at the section boundary. Test genuine understanding, not surface recall. Vary between multiple-choice (options array) and free-recall (options: null).
+- Diagrams — structure: when a section describes a process, workflow, decision logic, system architecture, hierarchy, state machine, or how several named things relate, add one compact \`\`\`mermaid fenced diagram (flowchart/graph, sequenceDiagram, classDiagram, or stateDiagram-v2) right after the paragraph it illustrates.
+- Diagrams — trends and curves: when a section instead describes how something changes, grows, matures, or declines over time — an S-curve, adoption curve, exponential or diminishing trend, learning curve, or any other named curve or cycle — actually draw it with a \`\`\`mermaid xychart-beta chart right after the paragraph, instead of only describing its shape in prose. Use illustrative, roughly-correct values and label axes/stages from the text, e.g.:
+  \`\`\`mermaid
+  xychart-beta
+      title "Technology S-Curve"
+      x-axis [Emergence, Growth, Maturity, Decline]
+      y-axis "Performance" 0 --> 100
+      line [5, 35, 85, 95]
+  \`\`\`
+- Only include a diagram where it genuinely clarifies structure or a trend a reader would otherwise have to hold in their head — never force one into a purely narrative section, and never invent structure or data the source doesn't support. Keep diagrams small (about 3-8 nodes or data points), use short plain-text labels, and keep the mermaid syntax strictly valid (avoid parentheses/colons/quotes in unquoted labels).
+- quiz: test genuine understanding of that section, not surface recall. Vary between multiple-choice (options array) and free-recall (options: null). Only set quiz to null for a short section where quizzing would be forced — most sections should have one.
 - Do not ask quiz questions about topics not yet explained.
 - Respond with JSON only, matching the given schema exactly.`;
 
@@ -157,7 +214,7 @@ async function generateChunk(params: { title: string; text: string; priorSummary
   if (!result.success) {
     throw new Error(`OpenRouter response didn't match the expected schema: ${result.error.message}`);
   }
-  return result.data;
+  return { blocks: flattenSections(result.data.sections), running_summary: result.data.running_summary };
 }
 
 function splitIntoChunks(text: string, budget: number): string[] {

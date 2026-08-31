@@ -136,6 +136,7 @@ export interface TopicStudyDetail {
     color_accent?: string;
     lastScrollBlockId?: string | null;
     lastScrollFraction?: number;
+    lastScrollAt?: string | null;
   };
   processingCount: number;
   blocks: TopicBlock[];
