@@ -33,6 +33,13 @@ const explainerBlock = z.object({
     "Use `inline code` for technical terms, variable names, formulas. " +
     "Use fenced code blocks (```language\\n...\\n```) for multi-line code or pseudocode. " +
     "Use - bullet lists for enumerable items; use 1. numbered lists for steps or ranked items. " +
+    "Math and formal notation: the renderer is plain markdown with NO LaTeX/KaTeX/MathJax support, so raw LaTeX " +
+    "commands (\\Sigma, \\langle, \\varepsilon, \\times, \\rightarrow, $...$, \\(...\\), etc.) render as literal " +
+    "backslashed text, not symbols — never write them. Use the actual Unicode character instead " +
+    "(Σ σ δ ε λ α β Γ Π μ θ, × ÷ ± → ⇒ ↔ ∈ ∉ ⊆ ⊂ ∪ ∩ ∅ ≤ ≥ ≠ ∀ ∃ ⟨ ⟩ ∞ …) and wrap the whole expression in " +
+    "`inline code` so it reads as notation, e.g. `A = ⟨Σ, Q, q₀, F, δ⟩` or `δ: Q × Σ → Q`. Superscript/subscript " +
+    "characters (⁰¹²³ⁿ, ₀₁₂ᵢⱼ) are fine inline; for anything that doesn't have a clean Unicode form, spell it out " +
+    "in words instead of falling back to LaTeX. " +
     "When the section describes a process, workflow, sequence of steps, decision logic, system architecture, " +
     "hierarchy/taxonomy, state machine, or the relationships between several named things, include one small " +
     "```mermaid\\n...\\n``` diagram (flowchart, sequenceDiagram, classDiagram, stateDiagram-v2, or graph) right " +
@@ -46,17 +53,22 @@ const explainerBlock = z.object({
   ),
 });
 
+const NO_LATEX_NOTE =
+  "This text renders as plain, unformatted text (no markdown, no LaTeX/KaTeX) — never use LaTeX commands " +
+  "(\\Sigma, \\langle, \\varepsilon, etc.) or markdown syntax (`backticks`, **bold**); write formal notation " +
+  "directly with Unicode symbols (Σ σ δ ε λ α β × ÷ ± → ∈ ⊆ ∪ ∩ ∅ ≤ ≥ ≠ ⟨ ⟩) and plain punctuation instead.";
+
 const quizBlock = z.object({
   type: z.literal("quiz"),
-  question: z.string().describe("A recall or understanding question testing the section just above it."),
+  question: z.string().describe(`A recall or understanding question testing the section just above it. ${NO_LATEX_NOTE}`),
   options: z
     .array(z.string())
     .min(2)
     .max(4)
     .nullable()
-    .describe("2-4 multiple choice options when that format is appropriate, otherwise null for a short free-recall answer."),
-  answer: z.string().describe("The correct answer — exact text of the correct option if options is set, otherwise a concise model answer."),
-  explanation: z.string().describe("One or two sentences explaining why the answer is correct."),
+    .describe(`2-4 multiple choice options when that format is appropriate, otherwise null for a short free-recall answer. ${NO_LATEX_NOTE}`),
+  answer: z.string().describe(`The correct answer — exact text of the correct option if options is set, otherwise a concise model answer. ${NO_LATEX_NOTE}`),
+  explanation: z.string().describe(`One or two sentences explaining why the answer is correct. ${NO_LATEX_NOTE}`),
 });
 
 const chunkResultSchema = z.object({
@@ -90,6 +102,7 @@ CRITICAL — block types: The blocks array may only contain objects with type "e
 Rules:
 - Cover the source material faithfully and completely — do not skip topics or invent content.
 - type "explainer": rich markdown for one major section. Start the markdown with a ## heading. Use ### for subsections, #### for sub-subsections. Write full paragraphs (3-6 sentences each). Use **bold** for key terms on first use, *italic* for emphasis, \`inline code\` for technical terms, fenced code blocks for multi-line code, - bullet lists, 1. numbered lists. Aim for 200-600 words per explainer block.
+- Math/formal notation: NEVER use LaTeX commands (\\Sigma, \\langle, \\varepsilon, \\rightarrow, $...$, etc.) — the renderer is plain markdown and shows them as literal backslashed text. Use real Unicode symbols instead (Σ σ δ ε λ α β Γ Π μ θ × ÷ ± → ⇒ ↔ ∈ ⊆ ∪ ∩ ∅ ≤ ≥ ≠ ∀ ∃ ⟨ ⟩ ∞) wrapped in \`inline code\`, e.g. \`A = ⟨Σ, Q, q₀, F, δ⟩\`.
 - Diagrams: when a section describes a process, workflow, decision logic, system architecture, hierarchy, state machine, or how several named things relate, add one compact \`\`\`mermaid fenced diagram (flowchart/graph, sequenceDiagram, classDiagram, or stateDiagram-v2) right after the paragraph it illustrates. Only do this where a diagram genuinely clarifies structure — never force one into a purely narrative section, and never invent structure the source doesn't support. Keep it small (about 3-8 nodes), use short plain-text labels, and keep the mermaid syntax strictly valid (avoid parentheses/colons/quotes in unquoted labels).
 - type "quiz": placed after each explainer block at the section boundary. Test genuine understanding, not surface recall. Vary between multiple-choice (options array) and free-recall (options: null).
 - Do not ask quiz questions about topics not yet explained.
@@ -242,13 +255,13 @@ export async function arrangeTopicBlocks(
 const longformQuestionSchema = z.object({
   question: z.string().describe(
     "An open-ended essay-style question that requires a multi-sentence written answer synthesizing " +
-    "concepts from the material — not answerable with a single word or fact.",
+    `concepts from the material — not answerable with a single word or fact. ${NO_LATEX_NOTE}`,
   ),
   key_points: z
     .array(z.string())
     .min(2)
     .max(6)
-    .describe("2-6 distinct points a strong answer should cover. Used as a grading rubric — not shown to the student before they answer."),
+    .describe(`2-6 distinct points a strong answer should cover. Used as a grading rubric — not shown to the student before they answer. ${NO_LATEX_NOTE}`),
 });
 
 const longformQuestionsResultSchema = z.object({
@@ -280,7 +293,8 @@ export async function generateLongformQuestions(
         role: "system",
         content:
           "You are an expert instructor writing essay-style long-answer questions to test deep, synthesized understanding of study material — the kind of question that can't be answered in one word and rewards explaining connections, reasoning, and examples. " +
-          "Spread questions across different parts of the material rather than clustering on one section. Respond with JSON only, matching the given schema exactly.",
+          "Spread questions across different parts of the material rather than clustering on one section. " +
+          `${NO_LATEX_NOTE} Respond with JSON only, matching the given schema exactly.`,
       },
       {
         role: "user",
@@ -315,9 +329,9 @@ const longformGradeSchema = z.object({
   verdict: z
     .enum(["excellent", "good", "needs_work", "incorrect"])
     .describe("excellent: 85-100, good: 60-84, needs_work: 30-59, incorrect: 0-29."),
-  feedback: z.string().describe("2-4 sentences of direct, encouraging feedback addressed to the student."),
-  strengths: z.array(z.string()).describe("What the answer got right. Empty array if none."),
-  missed_points: z.array(z.string()).describe("Key points from the rubric the answer missed or got wrong. Empty array if none."),
+  feedback: z.string().describe(`2-4 sentences of direct, encouraging feedback addressed to the student. ${NO_LATEX_NOTE}`),
+  strengths: z.array(z.string()).describe(`What the answer got right. Empty array if none. ${NO_LATEX_NOTE}`),
+  missed_points: z.array(z.string()).describe(`Key points from the rubric the answer missed or got wrong. Empty array if none. ${NO_LATEX_NOTE}`),
 });
 
 export type LongformGrade = z.infer<typeof longformGradeSchema>;
@@ -341,7 +355,7 @@ export async function gradeLongformAnswer(
         content:
           "You are a fair, encouraging instructor grading a student's written answer to an essay-style question. " +
           "Judge understanding and reasoning, not writing style or exact wording. Partial credit for partially correct or incomplete answers. " +
-          "Respond with JSON only, matching the given schema exactly.",
+          `${NO_LATEX_NOTE} Respond with JSON only, matching the given schema exactly.`,
       },
       {
         role: "user",

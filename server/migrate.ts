@@ -75,7 +75,8 @@ async function main() {
       { name: "name", type: "text" },
       { name: "description", type: "text" },
       { name: "color_accent", type: "text" },
-      { name: "last_scroll_percent", type: "number" },
+      { name: "last_scroll_block_id", type: "text" },
+      { name: "last_scroll_fraction", type: "number" },
       { name: "last_scroll_at", type: "date" },
     ]);
 

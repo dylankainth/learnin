@@ -4,9 +4,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, router, useLocalSearchParams } from "expo-router";
 import { api } from "@/lib/api";
+import { useOnReconnect } from "@/lib/connectivity";
 import type { Topic, DocumentSummary } from "@/lib/types";
 
 const PAD = 20;
+const PROCESSING_POLL_MS = 4000;
 
 export default function TopicDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -14,19 +16,40 @@ export default function TopicDetailScreen() {
   const [contents, setContents] = useState<DocumentSummary[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const openingPdf = useRef<Set<string>>(new Set());
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!id) return;
     try {
       const res = await api.topics.get(id);
       setTopic(res.topic);
       setContents(res.contents);
+
+      if (pollRef.current) clearTimeout(pollRef.current);
+      const stillProcessing = res.contents.some((c) => c.status === "pending" || c.status === "processing");
+      if (stillProcessing) {
+        // Nothing pushes us a "your resource is ready" event, so keep
+        // quietly re-fetching until every resource clears processing —
+        // no more needing to back out and back in to see the update.
+        pollRef.current = setTimeout(() => load(true), PROCESSING_POLL_MS);
+      }
     } catch {
-      setTopic({ id, name: "Loading...", created_at: new Date().toISOString(), content_count: 0, card_count: 0, due_count: 0 });
+      if (!silent) {
+        setTopic({ id, name: "Loading...", created_at: new Date().toISOString(), content_count: 0, card_count: 0, due_count: 0 });
+      }
     }
   }, [id]);
 
-  useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => {
+        if (pollRef.current) clearTimeout(pollRef.current);
+      };
+    }, [load]),
+  );
+
+  useOnReconnect(useCallback(() => { load(true); }, [load]));
 
   async function onRefresh() {
     setRefreshing(true);

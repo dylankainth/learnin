@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput } from "react-native";
 import { colors } from "@/theme/colors";
 import { typography, radii } from "@/theme/typography";
+import { cleanLatexSymbols } from "@/lib/latexCleanup";
 import type { QuizBlockView } from "@/lib/types";
 
 /** Ungraded comprehension check shown inline while reading — the real spaced-repetition scoring happens later in a review session. */
@@ -12,21 +13,29 @@ export function InlineQuiz({ block }: { block: QuizBlockView }) {
 
   const isCorrect = block.options ? selected === block.answer : null;
 
+  // This block renders as plain text, not markdown, so clean any stray
+  // LaTeX (\Sigma, \langle, ...) that slipped into already-generated content.
+  const question = useMemo(() => cleanLatexSymbols(block.question), [block.question]);
+  const answer = useMemo(() => cleanLatexSymbols(block.answer), [block.answer]);
+  const explanation = useMemo(() => cleanLatexSymbols(block.explanation), [block.explanation]);
+  const options = useMemo(() => block.options?.map(cleanLatexSymbols) ?? null, [block.options]);
+
   return (
     <View style={styles.card}>
-      <Text style={[typography.h2, { marginBottom: 2 }]}>{block.question}</Text>
+      <Text style={[typography.h2, { marginBottom: 2 }]}>{question}</Text>
 
-      {block.options ? (
+      {options ? (
         <View style={{ gap: 10, marginTop: 14 }}>
-          {block.options.map((opt) => {
-            const isSelected = selected === opt;
-            const showAsCorrect = revealed && opt === block.answer;
-            const showAsWrong = revealed && isSelected && opt !== block.answer;
+          {options.map((opt, i) => {
+            const rawOpt = block.options![i];
+            const isSelected = selected === rawOpt;
+            const showAsCorrect = revealed && rawOpt === block.answer;
+            const showAsWrong = revealed && isSelected && rawOpt !== block.answer;
             return (
               <Pressable
-                key={opt}
+                key={rawOpt}
                 disabled={revealed}
-                onPress={() => setSelected(opt)}
+                onPress={() => setSelected(rawOpt)}
                 style={[
                   styles.option,
                   isSelected && !revealed && { borderColor: colors.primary, backgroundColor: colors.primarySoft },
@@ -61,13 +70,13 @@ export function InlineQuiz({ block }: { block: QuizBlockView }) {
         </Pressable>
       ) : (
         <View style={styles.explanation}>
-          {block.options && (
+          {options && (
             <Text style={[typography.bodyMedium, { color: isCorrect ? colors.success : colors.danger }]}>
-              {isCorrect ? "Correct!" : `Not quite — the answer is "${block.answer}"`}
+              {isCorrect ? "Correct!" : `Not quite — the answer is "${answer}"`}
             </Text>
           )}
-          {!block.options && <Text style={typography.bodyMedium}>Model answer: {block.answer}</Text>}
-          <Text style={[typography.body, { color: colors.textMuted, marginTop: 6 }]}>{block.explanation}</Text>
+          {!options && <Text style={typography.bodyMedium}>Model answer: {answer}</Text>}
+          <Text style={[typography.body, { color: colors.textMuted, marginTop: 6 }]}>{explanation}</Text>
         </View>
       )}
     </View>

@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { colors } from "@/theme/colors";
 import { fonts, serifFonts } from "@/theme/typography";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
+import { cleanMarkdownLatex } from "@/lib/latexCleanup";
 
 function TappableItem({
   children,
@@ -194,6 +195,7 @@ export function InlineMarkdown({
 }) {
   const [readSet, setReadSet] = useState<Set<number>>(() => new Set(readParagraphs));
   const elementCounter = useRef(0);
+  const cleanedText = useMemo(() => cleanMarkdownLatex(text), [text]);
 
   const serialized = readParagraphs.slice().sort((a, b) => a - b).join(",");
   useEffect(() => {
@@ -263,7 +265,7 @@ export function InlineMarkdown({
 
   return (
     <Markdown style={markdownStyles} rules={rules}>
-      {text}
+      {cleanedText}
     </Markdown>
   );
 }

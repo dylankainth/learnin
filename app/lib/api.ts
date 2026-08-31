@@ -65,10 +65,10 @@ export const api = {
       }),
     delete: (id: string) => request<void>(`/topics/${id}`, { method: "DELETE" }),
     study: (id: string) => cachedRequest(`topics:study:${id}`, () => request<TopicStudyDetail>(`/topics/${id}/study`)),
-    saveScroll: (id: string, percent: number) =>
+    saveScroll: (id: string, blockId: string, fraction: number) =>
       request<{ ok: boolean }>(`/topics/${id}/scroll`, {
         method: "PATCH",
-        body: JSON.stringify({ percent }),
+        body: JSON.stringify({ blockId, fraction }),
       }),
   },
   blocks: {

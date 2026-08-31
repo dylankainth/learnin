@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { api } from "@/lib/api";
+import { cleanLatexSymbols } from "@/lib/latexCleanup";
 import type { LongformGradeResult, LongformQuestion } from "@/lib/types";
 
 type Phase = "loading" | "writing" | "grading" | "feedback" | "complete";
@@ -182,7 +183,7 @@ export default function LongformScreen() {
           {/* Question */}
           <View style={styles.questionCard}>
             <Text style={styles.questionLabel}>LONG ANSWER {index + 1}</Text>
-            <Text style={styles.questionText}>{question?.question}</Text>
+            <Text style={styles.questionText}>{question ? cleanLatexSymbols(question.question) : ""}</Text>
           </View>
 
           {error && phase === "writing" && (
@@ -229,14 +230,14 @@ export default function LongformScreen() {
 
               <View style={styles.explanation}>
                 <Text style={styles.explanationLabel}>FEEDBACK</Text>
-                <Text style={styles.explanationText}>{result!.feedback}</Text>
+                <Text style={styles.explanationText}>{cleanLatexSymbols(result!.feedback)}</Text>
               </View>
 
               {result!.strengths.length > 0 && (
                 <View style={styles.explanation}>
                   <Text style={styles.explanationLabel}>WHAT YOU GOT RIGHT</Text>
                   {result!.strengths.map((s, i) => (
-                    <Text key={i} style={styles.listItem}>•  {s}</Text>
+                    <Text key={i} style={styles.listItem}>•  {cleanLatexSymbols(s)}</Text>
                   ))}
                 </View>
               )}
@@ -245,7 +246,7 @@ export default function LongformScreen() {
                 <View style={styles.explanation}>
                   <Text style={styles.explanationLabel}>WHAT YOU MISSED</Text>
                   {result!.missedPoints.map((s, i) => (
-                    <Text key={i} style={styles.listItem}>•  {s}</Text>
+                    <Text key={i} style={styles.listItem}>•  {cleanLatexSymbols(s)}</Text>
                   ))}
                 </View>
               )}

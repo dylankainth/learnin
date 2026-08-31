@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { api } from "@/lib/api";
+import { cleanLatexSymbols } from "@/lib/latexCleanup";
 
 const { width: W } = Dimensions.get("window");
 
@@ -189,7 +190,7 @@ export default function QuizScreen() {
           {/* Question */}
           <View style={styles.questionCard}>
             <Text style={styles.questionLabel}>QUESTION {index + 1}</Text>
-            <Text style={styles.questionText}>{card.question}</Text>
+            <Text style={styles.questionText}>{cleanLatexSymbols(card.question)}</Text>
           </View>
 
           {/* Options / text input */}
@@ -212,7 +213,7 @@ export default function QuizScreen() {
                     onPress={() => !revealed && setSelected(opt)}
                     disabled={revealed}
                   >
-                    <Text style={[styles.optionText, { color: textColor }]}>{opt}</Text>
+                    <Text style={[styles.optionText, { color: textColor }]}>{cleanLatexSymbols(opt)}</Text>
                   </Pressable>
                 );
               })}
@@ -258,14 +259,14 @@ export default function QuizScreen() {
               {!correct && (
                 <View style={styles.answerReveal}>
                   <Text style={styles.answerRevealLabel}>Correct answer</Text>
-                  <Text style={styles.answerRevealText}>{card.answer}</Text>
+                  <Text style={styles.answerRevealText}>{cleanLatexSymbols(card.answer)}</Text>
                 </View>
               )}
 
               {card.explanation ? (
                 <View style={styles.explanation}>
                   <Text style={styles.explanationLabel}>WHY</Text>
-                  <Text style={styles.explanationText}>{card.explanation}</Text>
+                  <Text style={styles.explanationText}>{cleanLatexSymbols(card.explanation)}</Text>
                 </View>
               ) : null}
 

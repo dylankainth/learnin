@@ -83,7 +83,15 @@ function buildHtml(source: string, mermaidJs: string) {
 </html>`;
 }
 
-export function MermaidDiagram({ source }: { source: string }) {
+/**
+ * Memoized on `source` alone: this sits inside the study reader's paragraph
+ * tree, and ticking a paragraph elsewhere in the same explainer re-renders
+ * every sibling — without this, that would re-render (and, since the
+ * WebView `source` prop below was a fresh object each time, reload and
+ * re-run mermaid.js for) every diagram on the page, not just the one that
+ * changed. `source` is the only thing that ever actually changes a diagram.
+ */
+export const MermaidDiagram = React.memo(function MermaidDiagram({ source }: { source: string }) {
   const [height, setHeight] = useState(MIN_HEIGHT);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -104,6 +112,12 @@ export function MermaidDiagram({ source }: { source: string }) {
   }, []);
 
   const html = useMemo(() => (mermaidJs ? buildHtml(source, mermaidJs) : null), [source, mermaidJs]);
+  // WebView treats a new `source` object as a fresh page load even when its
+  // `html` content is byte-identical, so this has to be its own memo keyed
+  // on the string — an inline `source={{ html }}` literal would defeat the
+  // React.memo above the moment this component re-renders for any other
+  // reason (e.g. the very setHeight/setLoaded call below).
+  const webviewSource = useMemo(() => (html ? { html } : null), [html]);
 
   if (failed) {
     return (
@@ -129,10 +143,10 @@ export function MermaidDiagram({ source }: { source: string }) {
 
   return (
     <View style={[styles.wrap, { height }]}>
-      {html && (
+      {webviewSource && (
         <WebView
           originWhitelist={["*"]}
-          source={{ html }}
+          source={webviewSource}
           style={styles.webview}
           scrollEnabled={false}
           nestedScrollEnabled={false}
@@ -150,7 +164,7 @@ export function MermaidDiagram({ source }: { source: string }) {
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: {

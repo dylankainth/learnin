@@ -134,7 +134,8 @@ export interface TopicStudyDetail {
     name: string;
     description?: string;
     color_accent?: string;
-    lastScrollPercent?: number;
+    lastScrollBlockId?: string | null;
+    lastScrollFraction?: number;
   };
   processingCount: number;
   blocks: TopicBlock[];

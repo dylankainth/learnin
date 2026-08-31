@@ -220,7 +220,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
       return;
     }
 
-    const [documents, blocks, cards, paragraphReads] = await Promise.all([
+    const [documents, blocks, cards] = await Promise.all([
       pb.collection("documents").getFullList({
         filter: pb.filter("topic_id = {:tid}", { tid: id }),
         fields: "id,title,status",
@@ -233,11 +233,23 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
         filter: pb.filter("topic_id = {:tid}", { tid: id }),
         fields: "id,block_id,due_at,reps",
       }),
-      pb.collection("paragraph_reads").getFullList({
-        filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
-        fields: "block_id,paragraph_indices",
-      }),
     ]);
+
+    // Scoped to this topic's blocks — previously this fetched the user's
+    // ENTIRE paragraph-read history across every topic ever studied, which
+    // only grows over time and was a major, unnecessary slice of this
+    // endpoint's response time for any active user.
+    const blockIds = blocks.map((b) => b.id);
+    const paragraphReads =
+      blockIds.length > 0
+        ? await pb.collection("paragraph_reads").getFullList({
+            filter: pb.filter(
+              `user_id = {:uid} && (${blockIds.map((_, i) => `block_id = {:b${i}}`).join(" || ")})`,
+              { uid: req.userId, ...Object.fromEntries(blockIds.map((bid, i) => [`b${i}`, bid])) },
+            ),
+            fields: "block_id,paragraph_indices",
+          })
+        : [];
 
     // Only show blocks from ready documents
     const readyDocIds = new Set(documents.filter((d) => d.status === "ready").map((d) => d.id));
@@ -255,7 +267,8 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
         name: topic.name,
         description: topic.description || undefined,
         color_accent: topic.color_accent,
-        lastScrollPercent: topic.last_scroll_percent ?? 0,
+        lastScrollBlockId: topic.last_scroll_block_id || null,
+        lastScrollFraction: topic.last_scroll_fraction ?? 0,
       },
       processingCount,
       blocks: readyBlocks.map((block) => {
@@ -281,7 +294,8 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
 });
 
 const scrollSchema = z.object({
-  percent: z.number().min(0).max(100),
+  blockId: z.string().min(1).max(50),
+  fraction: z.number().min(0).max(1),
 });
 
 topicsRouter.patch("/:id/scroll", async (req: AuthedRequest, res) => {
@@ -301,7 +315,8 @@ topicsRouter.patch("/:id/scroll", async (req: AuthedRequest, res) => {
     }
 
     await pb.collection("topics").update(id, {
-      last_scroll_percent: parsed.data.percent,
+      last_scroll_block_id: parsed.data.blockId,
+      last_scroll_fraction: parsed.data.fraction,
       last_scroll_at: new Date(),
     });
 

@@ -115,7 +115,13 @@ export async function ensureCollections(): Promise<void> {
     { name: "name", type: "text" },
     { name: "description", type: "text" },
     { name: "color_accent", type: "text" },
-    { name: "last_scroll_percent", type: "number" },
+    // Block-based, not pixel-percent: percent-of-scroll-height doesn't
+    // transfer across devices with different viewport widths (narrower
+    // screens reflow text taller, so "40% down" lands on different content
+    // on a phone vs a tablet). A block id is stable across devices — and
+    // across content edits too, since it's an anchor, not a position.
+    { name: "last_scroll_block_id", type: "text" },
+    { name: "last_scroll_fraction", type: "number" },
     { name: "last_scroll_at", type: "date" },
   ]);
 

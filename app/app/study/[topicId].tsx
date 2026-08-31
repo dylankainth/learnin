@@ -29,6 +29,20 @@ import { api } from "@/lib/api";
 import { useOnReconnect } from "@/lib/connectivity";
 import type { TopicBlock, TopicStudyDetail } from "@/lib/types";
 
+// Sectional rendering tuning: small enough that the first paint is cheap,
+// large enough that a normal-size phone screen doesn't show blank space
+// before the next batch lands.
+const INITIAL_BLOCK_BATCH = 4;
+const BLOCK_BATCH_SIZE = 3;
+const BLOCK_BATCH_DELAY_MS = 150;
+// Used only as a rough restore estimate when a target block's own height
+// isn't measurable yet (its own layout is in, but the next block's isn't) —
+// close enough to land in the right block; the next real layout pass
+// corrects it once it's available.
+const FALLBACK_BLOCK_HEIGHT = 420;
+
+type BlockPosition = { blockId: string; fraction: number };
+
 type TocEntry = { text: string; level: number; blockIndex: number };
 
 function extractHeadings(markdown: string): { level: number; text: string }[] {
@@ -70,41 +84,102 @@ export default function TopicStudyScreen() {
   const scrollY = useRef(0);
   const lastVolume = useRef<number | null>(null);
   const SCROLL_STEP = Dimensions.get("window").height * 0.8;
-  const savedScrollPercent = useRef<number | null>(null);
+  const savedBlockPosition = useRef<BlockPosition | null>(null);
   const hasRestoredScroll = useRef(false);
   const scrollSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSavedPercent = useRef<number | null>(null);
+  const lastSavedKey = useRef<string | null>(null);
+
+  // Sectional rendering: only the first few blocks mount immediately (fast
+  // first paint on a fresh document), then the rest mount in small batches
+  // in the background. When there's a saved scroll position to restore,
+  // mounting instead jumps straight through the target block (see `load`)
+  // — restore is block-based, so it never needs the rest of the document.
+  const [mountedCount, setMountedCount] = useState(0);
+  const mountedCountRef = useRef(0);
+  function updateMountedCount(next: number) {
+    mountedCountRef.current = next;
+    setMountedCount(next);
+  }
+
+  /** Which block `scrollY.current` currently sits in, and how far through it (0-1). Null if nothing measured yet. */
+  function currentBlockPosition(): BlockPosition | null {
+    const blocks = detailRef.current?.blocks;
+    if (!blocks) return null;
+    const offsets = blockOffsets.current;
+
+    let idx = -1;
+    for (let i = 0; i < mountedCountRef.current; i++) {
+      if (offsets[i] === undefined) break; // offsets fill in top-to-bottom order — a gap means "not measured yet"
+      if (offsets[i] <= scrollY.current) idx = i;
+      else break;
+    }
+    if (idx === -1) idx = 0;
+    if (offsets[idx] === undefined) return null;
+
+    const start = offsets[idx];
+    const end = offsets[idx + 1] ?? (idx === blocks.length - 1 ? contentHeight.current : start + FALLBACK_BLOCK_HEIGHT);
+    const blockHeight = Math.max(1, end - start);
+    const fraction = Math.min(1, Math.max(0, (scrollY.current - start) / blockHeight));
+    return { blockId: blocks[idx].id, fraction };
+  }
 
   function tryRestoreScroll() {
     if (hasRestoredScroll.current) return;
-    const percent = savedScrollPercent.current;
-    if (percent === null || percent <= 0) {
+    const target = savedBlockPosition.current;
+    const blocks = detailRef.current?.blocks;
+    if (!target || !blocks) {
       hasRestoredScroll.current = true;
       return;
     }
-    // Both measurements come from separate onLayout/onContentSizeChange events
-    // that can fire in either order — bail until both are actually in, or a
-    // still-zero viewport height would make `scrollable` look far bigger
-    // than it really is and lock in a wildly wrong restore position.
-    if (contentHeight.current <= 0 || viewportHeight.current <= 0) return;
-    const scrollable = contentHeight.current - viewportHeight.current;
-    if (scrollable <= 0) return; // content not fully laid out yet — wait for the next event
+    const targetIndex = blocks.findIndex((b) => b.id === target.blockId);
+    if (targetIndex === -1) {
+      // The saved block no longer exists (e.g. content was regenerated) — nothing sane to restore to.
+      hasRestoredScroll.current = true;
+      return;
+    }
+
+    const offsets = blockOffsets.current;
+    const start = offsets[targetIndex];
+    if (start === undefined) return; // target block hasn't mounted/laid out yet — wait for the next event
+
+    const isLastBlock = targetIndex === blocks.length - 1;
+    let end = offsets[targetIndex + 1];
+    if (end === undefined) {
+      end = isLastBlock && contentHeight.current > start ? contentHeight.current : start + FALLBACK_BLOCK_HEIGHT;
+    }
+    const blockHeight = Math.max(1, end - start);
+    const y = start + target.fraction * blockHeight;
+
     hasRestoredScroll.current = true;
-    const y = (percent / 100) * scrollable;
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ y, animated: false });
     });
   }
 
-  function scheduleScrollSave(percent: number) {
+  function scheduleScrollSave() {
     if (!topicId || !hasRestoredScroll.current) return; // don't save until initial restore has settled
     if (scrollSaveTimer.current) clearTimeout(scrollSaveTimer.current);
     scrollSaveTimer.current = setTimeout(() => {
-      if (lastSavedPercent.current === percent) return;
-      lastSavedPercent.current = percent;
-      api.topics.saveScroll(topicId, percent).catch(() => {});
+      const pos = currentBlockPosition();
+      if (!pos) return;
+      const key = `${pos.blockId}:${Math.round(pos.fraction * 100)}`;
+      if (key === lastSavedKey.current) return;
+      lastSavedKey.current = key;
+      api.topics.saveScroll(topicId, pos.blockId, pos.fraction).catch(() => {});
     }, 1000);
   }
+
+  // Grows the mounted prefix in small background batches until every block
+  // is mounted. No-ops once caught up (e.g. after a restore-triggered jump
+  // straight to full mount), and self-cancels on unmount/topic change.
+  useEffect(() => {
+    if (!detail) return;
+    if (mountedCount >= detail.blocks.length) return;
+    const id = setTimeout(() => {
+      updateMountedCount(Math.min(detail.blocks.length, mountedCountRef.current + BLOCK_BATCH_SIZE));
+    }, BLOCK_BATCH_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [detail, mountedCount]);
 
   const onBlockStatsChange = useCallback((blockId: string, total: number, read: number) => {
     const prev = blockStatsRef.current.get(blockId);
@@ -120,11 +195,15 @@ export default function TopicStudyScreen() {
     if (!topicId) return;
     if (!silent) setLoading(true);
     try {
+      const isFirstLoadForThisScreen = detailRef.current === null;
       const data = await api.topics.study(topicId);
       detailRef.current = data;
       setDetail(data);
       if (!silent) {
-        savedScrollPercent.current = data.topic.lastScrollPercent ?? 0;
+        const savedBlockId = data.topic.lastScrollBlockId ?? null;
+        savedBlockPosition.current = savedBlockId
+          ? { blockId: savedBlockId, fraction: data.topic.lastScrollFraction ?? 0 }
+          : null;
         hasRestoredScroll.current = false;
         // onLayout/onContentSizeChange only fire when the ScrollView's size
         // actually changes — if this screen was already mounted (e.g. we
@@ -134,6 +213,19 @@ export default function TopicStudyScreen() {
         // known; it's a no-op (not a false "restored") if layout hasn't
         // happened yet, and the layout callbacks still cover a fresh mount.
         requestAnimationFrame(() => tryRestoreScroll());
+
+        // Block-based restore only needs the target block (plus one more,
+        // for an accurate in-block offset) mounted — never the whole
+        // document just to restore to a position, unlike pixel-percent
+        // restore which needed the true total height. Never shrinks
+        // whatever's already mounted; also covers a refocus revealing a
+        // newly-saved position (e.g. synced from another device) mid-batch.
+        const targetIndex = savedBlockId ? data.blocks.findIndex((b) => b.id === savedBlockId) : -1;
+        if (targetIndex >= 0 && mountedCountRef.current < targetIndex + 2) {
+          updateMountedCount(Math.min(data.blocks.length, targetIndex + 2));
+        } else if (isFirstLoadForThisScreen) {
+          updateMountedCount(Math.min(data.blocks.length, INITIAL_BLOCK_BATCH));
+        }
       }
       if (data.processingCount > 0) {
         pollRef.current = setTimeout(() => load(true), 5000);
@@ -193,12 +285,19 @@ export default function TopicStudyScreen() {
 
       return () => {
         if (scrollSaveTimer.current) clearTimeout(scrollSaveTimer.current);
+        // Block position only ever needs blocks up to the current scroll
+        // offset — which are always already mounted, since you can't scroll
+        // past content that isn't rendered — so unlike the old pixel-percent
+        // save, this doesn't need to wait for sectional rendering to finish
+        // mounting the rest of the document.
         if (hasRestoredScroll.current && topicId) {
-          const scrollable = contentHeight.current - viewportHeight.current;
-          const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((scrollY.current / scrollable) * 100))) : 0;
-          if (percent !== lastSavedPercent.current) {
-            lastSavedPercent.current = percent;
-            api.topics.saveScroll(topicId, percent).catch(() => {});
+          const pos = currentBlockPosition();
+          if (pos) {
+            const key = `${pos.blockId}:${Math.round(pos.fraction * 100)}`;
+            if (key !== lastSavedKey.current) {
+              lastSavedKey.current = key;
+              api.topics.saveScroll(topicId, pos.blockId, pos.fraction).catch(() => {});
+            }
           }
         }
 
@@ -247,10 +346,22 @@ export default function TopicStudyScreen() {
 
   function scrollToBlock(blockIndex: number) {
     setContentsVisible(false);
-    const y = blockOffsets.current[blockIndex] ?? 0;
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ y, animated: true });
-    }, 50);
+
+    // The target block might not be mounted yet under sectional rendering —
+    // force it (and everything before it) to mount before reading its
+    // offset, or this would silently fall back to y=0 and jump to the top.
+    const needsMount = mountedCountRef.current <= blockIndex;
+    if (needsMount && detail) {
+      updateMountedCount(Math.min(detail.blocks.length, blockIndex + 1));
+    }
+
+    setTimeout(
+      () => {
+        const y = blockOffsets.current[blockIndex] ?? 0;
+        scrollRef.current?.scrollTo({ y, animated: true });
+      },
+      needsMount ? 180 : 50, // give the newly-mounted blocks a moment to lay out first
+    );
   }
 
   if (loading) {
@@ -307,18 +418,19 @@ export default function TopicStudyScreen() {
           const scrollable = contentHeight.current - viewportHeight.current;
           const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((y / scrollable) * 100))) : 0;
           setScrollPercent(percent);
-          scheduleScrollSave(percent);
+          scheduleScrollSave();
         }}
         scrollEventThrottle={16}
         onContentSizeChange={(_w, h) => { contentHeight.current = h; tryRestoreScroll(); }}
         onLayout={(e) => { viewportHeight.current = e.nativeEvent.layout.height; tryRestoreScroll(); }}
       >
-        {detail.blocks.map((block, index) =>
+        {detail.blocks.slice(0, mountedCount).map((block, index) =>
           block.type === "explainer" ? (
             <View
               key={block.id}
               onLayout={(e) => {
                 blockOffsets.current[index] = e.nativeEvent.layout.y;
+                tryRestoreScroll();
               }}
             >
               <ExplainerItem
@@ -332,6 +444,7 @@ export default function TopicStudyScreen() {
               key={block.id}
               onLayout={(e) => {
                 blockOffsets.current[index] = e.nativeEvent.layout.y;
+                tryRestoreScroll();
               }}
             >
               <QuestSection topicId={topicId!} documentId={block.documentId} />
