@@ -256,6 +256,7 @@ topicsRouter.get("/:id/study", async (req: AuthedRequest, res) => {
         description: topic.description || undefined,
         color_accent: topic.color_accent,
         lastScrollPercent: topic.last_scroll_percent ?? 0,
+        lastScrollAt: topic.last_scroll_at || null,
       },
       processingCount,
       blocks: readyBlocks.map((block) => {

@@ -52,6 +52,30 @@ function buildToc(blocks: TopicBlock[]): TocEntry[] {
   return entries;
 }
 
+// Scroll position is also saved locally, not just via the `/scroll` PATCH.
+// Closing this screen and reopening it fires the save and the next load's
+// GET as two independent network requests with no ordering guarantee — on
+// a quick close-then-reopen the GET can win the race and hand back the
+// stale pre-session percent, with no way to recover it. Reading a local
+// write back is essentially instant next to a round trip, so it wins that
+// race in practice; the server value stays as the source of truth across
+// devices, picked whenever it's newer than what's stored locally.
+const SCROLL_CACHE_PREFIX = "@learnin/scroll/";
+
+async function readLocalScroll(topicId: string): Promise<{ percent: number; savedAt: number } | null> {
+  try {
+    const raw = await AsyncStorage.getItem(SCROLL_CACHE_PREFIX + topicId);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistScroll(topicId: string, percent: number) {
+  AsyncStorage.setItem(SCROLL_CACHE_PREFIX + topicId, JSON.stringify({ percent, savedAt: Date.now() })).catch(() => {});
+  api.topics.saveScroll(topicId, percent).catch(() => {});
+}
+
 export default function TopicStudyScreen() {
   const { topicId } = useLocalSearchParams<{ topicId: string }>();
   const [detail, setDetail] = useState<TopicStudyDetail | null>(null);
@@ -102,7 +126,7 @@ export default function TopicStudyScreen() {
     scrollSaveTimer.current = setTimeout(() => {
       if (lastSavedPercent.current === percent) return;
       lastSavedPercent.current = percent;
-      api.topics.saveScroll(topicId, percent).catch(() => {});
+      persistScroll(topicId, percent);
     }, 1000);
   }
 
@@ -124,7 +148,9 @@ export default function TopicStudyScreen() {
       detailRef.current = data;
       setDetail(data);
       if (!silent) {
-        savedScrollPercent.current = data.topic.lastScrollPercent ?? 0;
+        const local = await readLocalScroll(topicId);
+        const serverAt = data.topic.lastScrollAt ? new Date(data.topic.lastScrollAt).getTime() : 0;
+        savedScrollPercent.current = local && local.savedAt > serverAt ? local.percent : (data.topic.lastScrollPercent ?? 0);
         hasRestoredScroll.current = false;
         // onLayout/onContentSizeChange only fire when the ScrollView's size
         // actually changes — if this screen was already mounted (e.g. we
@@ -198,7 +224,7 @@ export default function TopicStudyScreen() {
           const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((scrollY.current / scrollable) * 100))) : 0;
           if (percent !== lastSavedPercent.current) {
             lastSavedPercent.current = percent;
-            api.topics.saveScroll(topicId, percent).catch(() => {});
+            persistScroll(topicId, percent);
           }
         }
 

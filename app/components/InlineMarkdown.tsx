@@ -194,6 +194,7 @@ export function InlineMarkdown({
 }) {
   const [readSet, setReadSet] = useState<Set<number>>(() => new Set(readParagraphs));
   const elementCounter = useRef(0);
+  const diagramCounter = useRef(0);
 
   const serialized = readParagraphs.slice().sort((a, b) => a - b).join(",");
   useEffect(() => {
@@ -226,11 +227,20 @@ export function InlineMarkdown({
 
   const rules = useMemo(
     () => ({
+      // react-native-markdown-display's own node.key comes from a
+      // module-level counter that keeps incrementing across renders (it's
+      // never reset per parse), and the markdown is re-parsed on every
+      // render — so node.key is a *different* value each time even for the
+      // same paragraph. Using it as a React key made every paragraph, list
+      // item, and diagram unmount and remount on every tick (losing the
+      // tick animation and reloading the diagram's WebView from scratch).
+      // Keying by position in this render's traversal instead keeps the
+      // same element identity across re-renders of the same content.
       paragraph: (node: any, children: React.ReactNode, _parent: any, styles: any) => {
         const index = elementCounter.current++;
         const isRead = readSet.has(index);
         return (
-          <TappableItem key={node.key} isRead={isRead} onToggle={() => toggleElement(index)}>
+          <TappableItem key={`el-${index}`} isRead={isRead} onToggle={() => toggleElement(index)}>
             <View style={styles._VIEW_SAFE_paragraph}>{children}</View>
           </TappableItem>
         );
@@ -239,7 +249,7 @@ export function InlineMarkdown({
         const index = elementCounter.current++;
         const isRead = readSet.has(index);
         return (
-          <TappableItem key={node.key} isRead={isRead} onToggle={() => toggleElement(index)}>
+          <TappableItem key={`el-${index}`} isRead={isRead} onToggle={() => toggleElement(index)}>
             {(renderRules.list_item as any)(node, children, parent, styles, inheritedStyles)}
           </TappableItem>
         );
@@ -251,7 +261,7 @@ export function InlineMarkdown({
             typeof node.content === "string" && node.content.endsWith("\n")
               ? node.content.slice(0, -1)
               : node.content;
-          return <MermaidDiagram key={node.key} source={content} />;
+          return <MermaidDiagram key={`diagram-${diagramCounter.current++}`} source={content} />;
         }
         return (renderRules.fence as any)(node, children, parent, styles, inheritedStyles);
       },
@@ -260,6 +270,7 @@ export function InlineMarkdown({
   );
 
   elementCounter.current = 0;
+  diagramCounter.current = 0;
 
   return (
     <Markdown style={markdownStyles} rules={rules}>
