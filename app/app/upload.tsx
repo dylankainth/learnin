@@ -15,8 +15,9 @@ type IntegrationMode = "append" | "arrange";
 export default function UploadScreen() {
   const { topicId, hasContent } = useLocalSearchParams<{ topicId: string; hasContent?: string }>();
   const topicHasContent = hasContent === "true";
-  const [file, setFile] = useState<Picked | null>(null);
+  const [files, setFiles] = useState<Picked[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [showModeModal, setShowModeModal] = useState(false);
 
   if (!topicId) {
@@ -30,36 +31,77 @@ export default function UploadScreen() {
     );
   }
 
-  async function pickFile() {
+  async function pickFiles() {
     const result = await DocumentPicker.getDocumentAsync({
       type: ["application/pdf", "video/mp4", "video/quicktime", "video/x-matroska", "video/webm"],
       copyToCacheDirectory: true,
+      multiple: true,
     });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    setFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? "application/octet-stream" });
+    if (result.canceled || !result.assets?.length) return;
+    const picked = result.assets.map((asset) => ({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? "application/octet-stream",
+    }));
+    // A picker round-trip can return the same file twice (e.g. picking again
+    // without clearing); de-dupe by uri so it doesn't queue an upload twice.
+    setFiles((prev) => {
+      const existingUris = new Set(prev.map((f) => f.uri));
+      return [...prev, ...picked.filter((f) => !existingUris.has(f.uri))];
+    });
+  }
+
+  function removeFile(uri: string) {
+    setFiles((prev) => prev.filter((f) => f.uri !== uri));
   }
 
   async function doUpload(integrationMode: IntegrationMode) {
-    if (!file) return;
+    if (files.length === 0) return;
     setUploading(true);
-    try {
-      const form = new FormData();
-      form.append("title", file.name.replace(/\.[^.]+$/, ""));
-      form.append("topic_id", topicId);
-      form.append("integration_mode", integrationMode);
-      form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
-      await api.documents.upload(form);
+    setUploadProgress({ done: 0, total: files.length });
+    const failures: { name: string; message: string }[] = [];
+    const succeededUris = new Set<string>();
+
+    // Uploaded one at a time, in order: each enqueues a background ingest
+    // job, and for "arrange" mode the server reads the topic's current
+    // blocks to decide where new content fits — running them concurrently
+    // would let two uploads read the same "before" snapshot and both try to
+    // arrange into the same spot.
+    for (const file of files) {
+      try {
+        const form = new FormData();
+        form.append("title", file.name.replace(/\.[^.]+$/, ""));
+        form.append("topic_id", topicId);
+        form.append("integration_mode", integrationMode);
+        form.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+        await api.documents.upload(form);
+        succeededUris.add(file.uri);
+      } catch (err) {
+        failures.push({ name: file.name, message: err instanceof Error ? err.message : "Something went wrong" });
+      }
+      setUploadProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+
+    setUploading(false);
+    setFiles((prev) => prev.filter((f) => !succeededUris.has(f.uri)));
+
+    if (failures.length === 0) {
       router.replace(`/topic/${topicId}`);
-    } catch (err) {
-      Alert.alert("Upload failed", err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setUploading(false);
+      return;
+    }
+    const failedList = failures.map((f) => `${f.name}: ${f.message}`).join("\n");
+    if (succeededUris.size > 0) {
+      Alert.alert(
+        "Some uploads failed",
+        `${succeededUris.size} of ${files.length} uploaded. The rest are still in the list to retry:\n\n${failedList}`,
+      );
+    } else {
+      Alert.alert("Upload failed", failedList);
     }
   }
 
   async function onUpload() {
-    if (!file) {
+    if (files.length === 0) {
       Alert.alert("Please select a file");
       return;
     }
@@ -81,29 +123,44 @@ export default function UploadScreen() {
           <BlobMascot color={colors.blue} size={90} mood="excited" />
           <Text style={[typography.h1, { marginTop: 16 }]}>Add to topic</Text>
           <Text style={[typography.body, { color: colors.textMuted, marginTop: 6, textAlign: "center" }]}>
-            Upload a PDF or video to build interactive study cards.
+            Upload PDFs or videos to build interactive study cards. You can pick more than one at a time.
           </Text>
         </View>
 
-        <Pressable style={styles.dropzone} onPress={pickFile}>
-          {file ? (
-            <Text style={typography.bodyMedium} numberOfLines={2}>
-              {file.name}
-            </Text>
-          ) : (
-            <>
-              <Text style={typography.bodyMedium}>Tap to choose a file</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>PDF, MP4, MOV, MKV, WebM</Text>
-            </>
-          )}
+        <Pressable style={styles.dropzone} onPress={pickFiles}>
+          <Text style={typography.bodyMedium}>{files.length > 0 ? "Add more files" : "Tap to choose files"}</Text>
+          <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>PDF, MP4, MOV, MKV, WebM</Text>
         </Pressable>
 
+        {files.length > 0 && (
+          <View style={{ marginTop: 16, gap: 8 }}>
+            {files.map((f) => (
+              <View key={f.uri} style={styles.fileRow}>
+                <Text style={[typography.body, { flex: 1 }]} numberOfLines={1}>
+                  {f.name}
+                </Text>
+                {!uploading && (
+                  <Pressable onPress={() => removeFile(f.uri)} hitSlop={10}>
+                    <Text style={{ color: colors.textMuted, fontSize: 18, lineHeight: 18 }}>×</Text>
+                  </Pressable>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {uploading && (
+          <Text style={[typography.caption, { color: colors.textMuted, textAlign: "center", marginTop: 16 }]}>
+            Uploading {Math.min(uploadProgress.done + 1, uploadProgress.total)} of {uploadProgress.total}…
+          </Text>
+        )}
+
         <Button
-          label={uploading ? "Uploading…" : "Upload"}
+          label={files.length > 1 ? `Upload ${files.length} files` : "Upload"}
           onPress={onUpload}
-          disabled={!file}
+          disabled={files.length === 0}
           loading={uploading}
-          style={{ marginTop: 32 }}
+          style={{ marginTop: uploading ? 12 : 32 }}
         />
       </ScrollView>
 
@@ -152,6 +209,15 @@ const styles = StyleSheet.create({
     paddingVertical: 36,
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
+  },
+  fileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
   modalBackdrop: {
     flex: 1,
