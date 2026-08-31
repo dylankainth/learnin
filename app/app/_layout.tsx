@@ -18,6 +18,7 @@ import {
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ConnectivityProvider } from "@/lib/connectivity";
 import { ToastHost } from "@/lib/toast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/theme/colors";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -63,17 +64,19 @@ export default function RootLayout() {
       <AuthProvider>
         <AuthGuard />
         <StatusBar style="dark" backgroundColor={colors.bg} />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: "transparent" },
-            animation: "slide_from_right",
-            gestureEnabled: true,
-            animationMatchesGesture: true,
-          }}
-        >
-          <Stack.Screen name="(auth)" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-        </Stack>
+        <ErrorBoundary>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: "transparent" },
+              animation: "slide_from_right",
+              gestureEnabled: true,
+              animationMatchesGesture: true,
+            }}
+          >
+            <Stack.Screen name="(auth)" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+          </Stack>
+        </ErrorBoundary>
         <ToastHost />
       </AuthProvider>
     </ConnectivityProvider>
