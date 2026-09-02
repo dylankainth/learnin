@@ -5,6 +5,22 @@ The Android `versionCode` is bumped by one on every release.
 
 ---
 
+## 0.2.4 — 2026-09-02
+
+Android `versionCode` 6.
+
+### Packaging
+- **R8 class repackaging enabled** (`-repackageclasses ''`) plus
+  `-allowaccessmodification`, added to `extraProguardRules` in `app.json`.
+  Clears the "Repackage classes" item in Play Console's App optimisation panel
+  and lifts obfuscation coverage further. Does not need AGP 9 — that's a plain
+  R8 feature on the current AGP 8.8.2.
+- Everything else (R8 full mode, resource shrinking, keep rules) unchanged from
+  0.2.3. Still needs an on-device retest — repackaging is the one R8 setting
+  that can trip a library doing reflection by hardcoded package name.
+
+---
+
 ## 0.2.3 — 2026-09-02
 
 Android `versionCode` 5.
