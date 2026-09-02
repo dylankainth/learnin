@@ -5,6 +5,32 @@ The Android `versionCode` is bumped by one on every release.
 
 ---
 
+## 0.2.3 — 2026-09-02
+
+Android `versionCode` 5.
+
+### Packaging
+- **R8 code shrinking + obfuscation + resource shrinking enabled for release
+  builds.** Previously the release build ran no minification, so Play Console
+  rated app optimisation "Low" (~2% obfuscation, 19.8 MB uncompressed DEX).
+  After R8 the base DEX drops to ~8.8 MB and Play gets a bundled deobfuscation
+  map for crash reports.
+- Configured through the new **`expo-build-properties`** plugin in `app.json`
+  (`android.enableProguardInReleaseBuilds`, `enableShrinkResourcesInReleaseBuilds`,
+  `extraProguardRules`) so it survives `expo prebuild` — this also moves the
+  API-36 SDK pin (added in 0.2.2 by hand-editing `android/`) into `app.json`.
+  The `extraProguardRules` block keeps the reflection-heavy native modules:
+  React Native bridge, Expo modules, SVG, WebView, AsyncStorage, NetInfo,
+  volume-manager, Firebase Cloud Messaging.
+- **Smoke-tested on an emulator** with the minified build: onboarding, login,
+  home dashboard, topics, topic detail, lecture/markdown rendering, and the
+  quiz answer→rating→next flow all work. Still worth a full pass on a physical
+  device (notifications, document upload, camera/file pickers) before promoting
+  past internal testing.
+- AGP 9 / newer R8 optimisations remain gated on a future Expo SDK bump.
+
+---
+
 ## 0.2.2 — 2026-09-02
 
 Android `versionCode` 4. First Play Store submission.
