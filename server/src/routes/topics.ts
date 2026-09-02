@@ -20,7 +20,7 @@ topicsRouter.get("/", async (req: AuthedRequest, res) => {
       }),
       pb.collection("cards").getFullList({
         filter: pb.filter("user_id = {:uid} && topic_id != ''", { uid: req.userId }),
-        fields: "id,topic_id,due_at",
+        fields: "id,topic_id,due_at,reps",
       }),
     ]);
 
@@ -31,10 +31,14 @@ topicsRouter.get("/", async (req: AuthedRequest, res) => {
     }
     const cardCountByTopic = new Map<string, number>();
     const dueCountByTopic = new Map<string, number>();
+    const studiedCountByTopic = new Map<string, number>();
     const nextDueByTopic = new Map<string, number>();
     for (const card of cards) {
       if (card.topic_id) {
         cardCountByTopic.set(card.topic_id, (cardCountByTopic.get(card.topic_id) ?? 0) + 1);
+        if (Number(card.reps) > 0) {
+          studiedCountByTopic.set(card.topic_id, (studiedCountByTopic.get(card.topic_id) ?? 0) + 1);
+        }
         const dueMs = card.due_at ? new Date(card.due_at).getTime() : null;
         if (dueMs && dueMs <= now) {
           dueCountByTopic.set(card.topic_id, (dueCountByTopic.get(card.topic_id) ?? 0) + 1);
@@ -54,6 +58,7 @@ topicsRouter.get("/", async (req: AuthedRequest, res) => {
         created_at: topic.created,
         content_count: docCountByTopic.get(topic.id) ?? 0,
         card_count: cardCountByTopic.get(topic.id) ?? 0,
+        studied_count: studiedCountByTopic.get(topic.id) ?? 0,
         due_count: dueCountByTopic.get(topic.id) ?? 0,
         next_due_at: nextDueByTopic.has(topic.id) ? new Date(nextDueByTopic.get(topic.id)!).toISOString() : undefined,
       })),

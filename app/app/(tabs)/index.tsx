@@ -17,6 +17,7 @@ import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useOnReconnect } from "@/lib/connectivity";
+import { TopicDonut } from "@/components/TopicDonut";
 import type { Topic, ReviewStats } from "@/lib/types";
 
 const { width: W } = Dimensions.get("window");
@@ -262,6 +263,9 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
+
+        {/* Progress split by topic */}
+        {topics.length > 0 && <TopicDonut topics={topics} />}
 
         {/* Topic card */}
         {nextTopic ? (
