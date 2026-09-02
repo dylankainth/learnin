@@ -40,8 +40,21 @@ const BLOCK_BATCH_DELAY_MS = 150;
 // close enough to land in the right block; the next real layout pass
 // corrects it once it's available.
 const FALLBACK_BLOCK_HEIGHT = 420;
+// Scroll-restore watchdog: re-scroll to the saved spot every tick until the
+// layout above it has been still for QUIET ms, giving late-resizing content
+// (mermaid WebViews, images) time to push the target into its final place.
+const RESTORE_TICK_MS = 120;
+const LAYOUT_QUIET_MS = 450;
+const RESTORE_MAX_MS = 6000;
 
 type BlockPosition = { blockId: string; fraction: number };
+
+// Last scroll position we wrote for a topic this app session, kept in memory so
+// a quick leave-and-return doesn't lose it: the save PATCH and the next load's
+// GET race with no ordering guarantee, and the GET can win and hand back the
+// pre-session value. Preferred over the server value only when it's newer
+// (compared against the server's lastScrollAt), so another device still wins.
+const recentScrollByTopic = new Map<string, { blockId: string; fraction: number; at: number }>();
 
 type TocEntry = { text: string; level: number; blockIndex: number };
 
@@ -86,6 +99,9 @@ export default function TopicStudyScreen() {
   const SCROLL_STEP = Dimensions.get("window").height * 0.8;
   const savedBlockPosition = useRef<BlockPosition | null>(null);
   const hasRestoredScroll = useRef(false);
+  const restoreAppliedRef = useRef(false);
+  const lastLayoutChangeAt = useRef(0);
+  const restoreWatchdog = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedKey = useRef<string | null>(null);
 
@@ -123,37 +139,104 @@ export default function TopicStudyScreen() {
     return { blockId: blocks[idx].id, fraction };
   }
 
-  function tryRestoreScroll() {
-    if (hasRestoredScroll.current) return;
+  /** Pixel y that `savedBlockPosition` maps to given the offsets measured so far. Null if not enough is measured yet. */
+  function computeRestoreY(): number | null {
     const target = savedBlockPosition.current;
     const blocks = detailRef.current?.blocks;
-    if (!target || !blocks) {
-      hasRestoredScroll.current = true;
-      return;
-    }
+    if (!target || !blocks) return null;
     const targetIndex = blocks.findIndex((b) => b.id === target.blockId);
-    if (targetIndex === -1) {
-      // The saved block no longer exists (e.g. content was regenerated) — nothing sane to restore to.
-      hasRestoredScroll.current = true;
-      return;
-    }
+    if (targetIndex === -1) return null;
 
     const offsets = blockOffsets.current;
     const start = offsets[targetIndex];
-    if (start === undefined) return; // target block hasn't mounted/laid out yet — wait for the next event
+    if (start === undefined) return null; // target block hasn't laid out yet
 
     const isLastBlock = targetIndex === blocks.length - 1;
     let end = offsets[targetIndex + 1];
     if (end === undefined) {
       end = isLastBlock && contentHeight.current > start ? contentHeight.current : start + FALLBACK_BLOCK_HEIGHT;
     }
-    const blockHeight = Math.max(1, end - start);
-    const y = start + target.fraction * blockHeight;
+    return start + target.fraction * Math.max(1, end - start);
+  }
 
+  function finishRestore() {
     hasRestoredScroll.current = true;
+    if (restoreWatchdog.current) {
+      clearInterval(restoreWatchdog.current);
+      restoreWatchdog.current = null;
+    }
+  }
+
+  /** Record a block's measured top; flag that layout moved so the restore watchdog keeps correcting. */
+  function noteBlockOffset(index: number, y: number) {
+    if (blockOffsets.current[index] !== y) {
+      blockOffsets.current[index] = y;
+      // Only layout at/above the target (plus its next sibling, which fixes the
+      // target's height) changes where we need to land. Blocks further down
+      // keep shifting as sectional rendering mounts the rest of the document —
+      // ignore those, or the watchdog would never see the layout go "quiet".
+      const target = savedBlockPosition.current;
+      const blocks = detailRef.current?.blocks;
+      if (target && blocks && !hasRestoredScroll.current) {
+        const ti = blocks.findIndex((b) => b.id === target.blockId);
+        if (ti !== -1 && index <= ti + 1) lastLayoutChangeAt.current = Date.now();
+      }
+    }
+    tryRestoreScroll();
+  }
+
+  // Restore isn't one-shot: the target block's true height isn't known until
+  // the *next* block has also laid out, and a diagram/image above it can keep
+  // growing for a second or more after first paint (mermaid renders in a
+  // WebView and reports its height back late), shifting the target down. So we
+  // re-scroll on every layout change and keep a watchdog running (see `load`)
+  // that only calls `finishRestore` once layout has been quiet for a beat — or
+  // the user starts scrolling, or a hard timeout hits.
+  function tryRestoreScroll() {
+    if (hasRestoredScroll.current) return;
+    const target = savedBlockPosition.current;
+    const blocks = detailRef.current?.blocks;
+    if (!target || !blocks || blocks.findIndex((b) => b.id === target.blockId) === -1) {
+      // Nothing to restore to (fresh open, or the saved block was regenerated away).
+      finishRestore();
+      return;
+    }
+    const y = computeRestoreY();
+    if (y === null) return; // not measured enough yet — a later layout event retries
+    restoreAppliedRef.current = true;
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y, animated: false });
+      if (!hasRestoredScroll.current) scrollRef.current?.scrollTo({ y, animated: false });
     });
+  }
+
+  // Keeps nudging the scroll position to the saved spot until the layout above
+  // it settles (quiet for LAYOUT_QUIET_MS), then locks it in. Hard-capped so it
+  // always ends even if something above never stops resizing.
+  function startRestoreWatchdog() {
+    if (restoreWatchdog.current) clearInterval(restoreWatchdog.current);
+    restoreAppliedRef.current = false;
+    lastLayoutChangeAt.current = Date.now();
+    const startedAt = Date.now();
+    restoreWatchdog.current = setInterval(() => {
+      if (hasRestoredScroll.current) {
+        finishRestore();
+        return;
+      }
+      tryRestoreScroll();
+      const quiet = Date.now() - lastLayoutChangeAt.current > LAYOUT_QUIET_MS;
+      if ((restoreAppliedRef.current && quiet) || Date.now() - startedAt > RESTORE_MAX_MS) {
+        finishRestore();
+      }
+    }, RESTORE_TICK_MS);
+  }
+
+  function persistScrollPosition(pos: BlockPosition) {
+    if (!topicId) return;
+    const key = `${pos.blockId}:${Math.round(pos.fraction * 100)}`;
+    if (key === lastSavedKey.current) return;
+    lastSavedKey.current = key;
+    recentScrollByTopic.set(topicId, { blockId: pos.blockId, fraction: pos.fraction, at: Date.now() });
+    api.topics.saveScroll(topicId, pos.blockId, pos.fraction).catch(() => {});
   }
 
   function scheduleScrollSave() {
@@ -161,11 +244,7 @@ export default function TopicStudyScreen() {
     if (scrollSaveTimer.current) clearTimeout(scrollSaveTimer.current);
     scrollSaveTimer.current = setTimeout(() => {
       const pos = currentBlockPosition();
-      if (!pos) return;
-      const key = `${pos.blockId}:${Math.round(pos.fraction * 100)}`;
-      if (key === lastSavedKey.current) return;
-      lastSavedKey.current = key;
-      api.topics.saveScroll(topicId, pos.blockId, pos.fraction).catch(() => {});
+      if (pos) persistScrollPosition(pos);
     }, 1000);
   }
 
@@ -200,18 +279,23 @@ export default function TopicStudyScreen() {
       detailRef.current = data;
       setDetail(data);
       if (!silent) {
-        const savedBlockId = data.topic.lastScrollBlockId ?? null;
-        savedBlockPosition.current = savedBlockId
-          ? { blockId: savedBlockId, fraction: data.topic.lastScrollFraction ?? 0 }
-          : null;
-        hasRestoredScroll.current = false;
-        // onLayout/onContentSizeChange only fire when the ScrollView's size
-        // actually changes — if this screen was already mounted (e.g. we
-        // just navigated back to it) and the content renders at the same
-        // size as before, neither event fires again, so restore would never
-        // be attempted. Try directly against whatever height is already
-        // known; it's a no-op (not a false "restored") if layout hasn't
-        // happened yet, and the layout callbacks still cover a fresh mount.
+        // Prefer the position we wrote this session over the server's if ours
+        // is newer — the save PATCH and this GET race with no ordering guarantee.
+        const serverAt = data.topic.lastScrollAt ? new Date(data.topic.lastScrollAt).getTime() : 0;
+        const recent = recentScrollByTopic.get(topicId);
+        savedBlockPosition.current =
+          recent && recent.at > serverAt
+            ? { blockId: recent.blockId, fraction: recent.fraction }
+            : data.topic.lastScrollBlockId
+              ? { blockId: data.topic.lastScrollBlockId, fraction: data.topic.lastScrollFraction ?? 0 }
+              : null;
+        const savedBlockId = savedBlockPosition.current?.blockId ?? null;
+
+        hasRestoredScroll.current = savedBlockPosition.current === null;
+        // The watchdog re-scrolls on its own ticks (covering the case where the
+        // screen was already mounted and no layout event fires) as well as on
+        // every layout change, until the content above the target settles.
+        if (savedBlockPosition.current) startRestoreWatchdog();
         requestAnimationFrame(() => tryRestoreScroll());
 
         // Block-based restore only needs the target block (plus one more,
@@ -260,6 +344,7 @@ export default function TopicStudyScreen() {
         const prev = lastVolume.current;
         lastVolume.current = result.volume;
         if (prev === null) return;
+        if (!hasRestoredScroll.current) finishRestore(); // user is driving now — stop auto-correcting
         if (result.volume > prev) {
           scrollRef.current?.scrollTo({ y: Math.max(0, scrollY.current - SCROLL_STEP), animated: true });
         } else if (result.volume < prev) {
@@ -268,6 +353,7 @@ export default function TopicStudyScreen() {
       });
       return () => {
         if (pollRef.current) clearTimeout(pollRef.current);
+        if (restoreWatchdog.current) clearInterval(restoreWatchdog.current);
         sub?.remove();
         VolumeManager?.showNativeVolumeUI({ enabled: true });
       };
@@ -292,13 +378,7 @@ export default function TopicStudyScreen() {
         // mounting the rest of the document.
         if (hasRestoredScroll.current && topicId) {
           const pos = currentBlockPosition();
-          if (pos) {
-            const key = `${pos.blockId}:${Math.round(pos.fraction * 100)}`;
-            if (key !== lastSavedKey.current) {
-              lastSavedKey.current = key;
-              api.topics.saveScroll(topicId, pos.blockId, pos.fraction).catch(() => {});
-            }
-          }
+          if (pos) persistScrollPosition(pos);
         }
 
         const durationMin = (Date.now() - sessionStart) / 60000;
@@ -346,6 +426,7 @@ export default function TopicStudyScreen() {
 
   function scrollToBlock(blockIndex: number) {
     setContentsVisible(false);
+    if (!hasRestoredScroll.current) finishRestore(); // explicit jump wins over an in-progress restore
 
     // The target block might not be mounted yet under sectional rendering —
     // force it (and everything before it) to mount before reading its
@@ -420,18 +501,30 @@ export default function TopicStudyScreen() {
           setScrollPercent(percent);
           scheduleScrollSave();
         }}
+        onScrollBeginDrag={() => { if (!hasRestoredScroll.current) finishRestore(); }}
         scrollEventThrottle={16}
-        onContentSizeChange={(_w, h) => { contentHeight.current = h; tryRestoreScroll(); }}
+        onContentSizeChange={(_w, h) => {
+          // A growing content height is mostly sectional rendering appending
+          // blocks below — only relevant to restore when the target is the last
+          // block (computeRestoreY falls back to contentHeight for its end).
+          const blocks = detailRef.current?.blocks;
+          const target = savedBlockPosition.current;
+          if (
+            contentHeight.current !== h && target && blocks &&
+            blocks.findIndex((b) => b.id === target.blockId) === blocks.length - 1
+          ) {
+            lastLayoutChangeAt.current = Date.now();
+          }
+          contentHeight.current = h;
+          tryRestoreScroll();
+        }}
         onLayout={(e) => { viewportHeight.current = e.nativeEvent.layout.height; tryRestoreScroll(); }}
       >
         {detail.blocks.slice(0, mountedCount).map((block, index) =>
           block.type === "explainer" ? (
             <View
               key={block.id}
-              onLayout={(e) => {
-                blockOffsets.current[index] = e.nativeEvent.layout.y;
-                tryRestoreScroll();
-              }}
+              onLayout={(e) => noteBlockOffset(index, e.nativeEvent.layout.y)}
             >
               <ExplainerItem
                 block={block}
@@ -442,10 +535,7 @@ export default function TopicStudyScreen() {
           ) : (
             <View
               key={block.id}
-              onLayout={(e) => {
-                blockOffsets.current[index] = e.nativeEvent.layout.y;
-                tryRestoreScroll();
-              }}
+              onLayout={(e) => noteBlockOffset(index, e.nativeEvent.layout.y)}
             >
               <QuestSection topicId={topicId!} documentId={block.documentId} />
             </View>

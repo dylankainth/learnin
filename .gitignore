@@ -16,6 +16,9 @@ web-build/
 android/
 ios/
 
+# signing keys
+keys/
+
 # misc
 .DS_Store
 *.log

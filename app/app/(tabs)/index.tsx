@@ -152,8 +152,20 @@ export default function HomeScreen() {
   const retentionRate = Math.round(retention?.retentionRate ?? 0);
   const nextTopic = topics[0];
 
+  const streak = Number(stats?.streak ?? 0);
+
   // Build a date-keyed map of real heatmap data
   const heatmapByDate = Object.fromEntries(heatmap.map((d) => [d.date, d.count]));
+
+  // Real review counts for the past 14 days (no sample fallback)
+  const realBars14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    return heatmapByDate[d.toISOString().split("T")[0]] ?? 0;
+  });
+  const reviewsThisWeek = realBars14.slice(7).reduce((a, b) => a + b, 0);
+  // Trailing-window streak bars: 1 where that day had activity, for a clean on/off look
+  const streakBars = realBars14.map((v) => (v > 0 ? 1 : 0));
 
   // Sample data for the past 14 days (merged with real data where available)
   const SAMPLE = [3, 7, 5, 12, 8, 15, 6, 9, 4, 11, 7, 13, 10, 5];
@@ -207,13 +219,7 @@ export default function HomeScreen() {
         </LinearGradient>
 
         {/* Stat cards */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_W + 10}
-          decelerationRate="fast"
-          contentContainerStyle={styles.cardsRow}
-        >
+        <View style={styles.cardsGrid}>
           <View style={[styles.statCard, { backgroundColor: "#cbe1c3" }]}>
             <MiniBar values={activityBars} barColor="#519336" />
             <Text style={[styles.statBigNum, { color: "#255312" }]}>{doneToday}</Text>
@@ -237,7 +243,19 @@ export default function HomeScreen() {
             <Text style={[styles.statBigNum, { color: "#420000" }]}>{firstUnderstanding !== null ? `${firstUnderstanding}%` : "—"}</Text>
             <Text style={[styles.statBigUnit, { color: "#420000" }]}>first understanding</Text>
           </View>
-        </ScrollView>
+
+          <View style={[styles.statCard, { backgroundColor: "#f5cdb8" }]}>
+            <MiniBar values={streakBars} barColor="#c2410c" />
+            <Text style={[styles.statBigNum, { color: "#7c2d12" }]}>{streak}</Text>
+            <Text style={[styles.statBigUnit, { color: "#7c2d12" }]}>day streak</Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: "#b8dbe1" }]}>
+            <MiniBar values={realBars14} barColor="#0e7490" />
+            <Text style={[styles.statBigNum, { color: "#134e52" }]}>{reviewsThisWeek}</Text>
+            <Text style={[styles.statBigUnit, { color: "#134e52" }]}>reviews this week</Text>
+          </View>
+        </View>
 
         {/* Topic card */}
         {nextTopic ? (
@@ -335,6 +353,7 @@ const styles = StyleSheet.create({
   moodLabel: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)" },
 
   cardsRow: { flexDirection: "row", gap: 10, marginBottom: 10, paddingRight: PAD },
+  cardsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
   statCard: { width: CARD_W, borderRadius: 14, padding: 16, gap: 10 },
   statCardTitle: { fontFamily: "Figtree_500Medium", fontSize: 12, color: "#333" },
   statBigNum: {

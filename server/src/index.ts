@@ -28,6 +28,10 @@ async function main() {
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
 
+  // Play Store listing links
+  app.get("/delete-account", (_req, res) => res.redirect(301, "/delete-account.html"));
+  app.get("/privacy", (_req, res) => res.redirect(301, "/privacy.html"));
+
   app.get("/download/app.aab", (_req, res) => {
     res.redirect("https://expo.dev/artifacts/eas/zU055cULQt1B7ijXpzepqAJFqGhRSwGoekH0Ujdj7rw.aab");
   });

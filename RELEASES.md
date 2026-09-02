@@ -5,6 +5,41 @@ The Android `versionCode` is bumped by one on every release.
 
 ---
 
+## 0.2.2 — 2026-09-02
+
+Android `versionCode` 4. First Play Store submission.
+
+### Packaging
+- **Application ID is now `com.dylankainth.seasponge`** (was `com.seasponge.app`)
+  to match the reserved Play Console listing.
+- **Targets Android API 36**, up from 35, as required by Play.
+- Release builds are signed with a dedicated upload keystore (`keys/`, gitignored)
+  under Google Play App Signing, replacing the debug keystore.
+
+### New
+- **Two more home-screen stats** — "day streak" and "reviews this week", each
+  with its own mini activity bar.
+
+### Improved
+- **All home-screen stat cards are visible at once** — the sideways-scrolling
+  strip is now a wrapping grid.
+- **Home stat bars use only real review data**, with no sample values mixed in.
+
+### Fixed
+- **Profile page still crashed on open in 0.2.0** — `Cannot find native module
+  'ExpoApplication'`. `node_modules` was in a partially-installed state that left
+  `expo-application` (a transitive dependency of `expo-notifications`) without its
+  Android sources, so it was never autolinked. Reinstalled dependencies and
+  rebuilt.
+- **Study screen didn't return to the exact same spot** after leaving and
+  reopening it. Restore was one-shot and ran before the target section's real
+  height was known (and before mermaid diagrams above it finished resizing), so
+  it landed close but off. It now keeps correcting until the layout above the
+  target settles, and prefers the position saved this session over a stale
+  server value when the two race.
+
+---
+
 ## 0.2.0 — 2026-08-31
 
 Android `versionCode` 2.

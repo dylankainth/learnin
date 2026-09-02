@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete Your Account - Sea Sponge</title>
+  <meta name="description" content="How to request deletion of your Sea Sponge account and associated data.">
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #C7B9F2 0%, #FFFFFF 100%);
+      min-height: 100vh;
+      padding: 48px 20px 64px;
+      color: #241E38;
+    }
+
+    .container {
+      position: relative;
+      max-width: 720px;
+      margin: 0 auto;
+      z-index: 1;
+    }
+
+    .blob {
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      background: rgba(108, 79, 224, 0.12);
+      border-radius: 45% 55% 60% 40% / 55% 45% 40% 60%;
+      animation: blob 6s ease-in-out infinite;
+      top: -120px;
+      right: -140px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes blob {
+      0%, 100% {
+        border-radius: 45% 55% 60% 40% / 55% 45% 40% 60%;
+        transform: scale(1);
+      }
+      25% {
+        border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+        transform: scale(1.05);
+      }
+      50% {
+        border-radius: 50% 50% 40% 60% / 60% 40% 50% 50%;
+        transform: scale(1.02);
+      }
+      75% {
+        border-radius: 55% 45% 55% 45% / 45% 55% 45% 55%;
+        transform: scale(1.03);
+      }
+    }
+
+    .back-link {
+      display: inline-block;
+      color: #6C4FE0;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      margin-bottom: 24px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .beta-badge {
+      display: inline-block;
+      background: rgba(108, 79, 224, 0.2);
+      color: #6C4FE0;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      border: 1px solid rgba(108, 79, 224, 0.3);
+    }
+
+    h1 {
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+
+    .updated {
+      font-size: 14px;
+      color: #8D86A6;
+      font-weight: 600;
+      margin-bottom: 36px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 18px;
+      border: 1px solid rgba(108, 79, 224, 0.2);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #6C4FE0;
+      margin-bottom: 14px;
+    }
+
+    p, li {
+      font-size: 15px;
+      color: #4A4360;
+      line-height: 1.7;
+    }
+
+    ol, ul {
+      padding-left: 22px;
+      margin: 8px 0;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    strong {
+      color: #241E38;
+    }
+
+    a {
+      color: #6C4FE0;
+      font-weight: 600;
+    }
+
+    .mail-button {
+      display: inline-block;
+      background: #6C4FE0;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 14px 24px;
+      border-radius: 14px;
+      margin-top: 8px;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 13px;
+      color: #8D86A6;
+      margin-top: 32px;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 32px;
+      }
+
+      .card {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="blob"></div>
+  <div class="container">
+    <a class="back-link" href="/">&larr; Back to Sea Sponge</a>
+    <div class="beta-badge">Account Deletion</div>
+    <h1>Delete Your Account</h1>
+    <p class="updated">Last updated: September 2, 2026</p>
+
+    <div class="card">
+      <h2>About this page</h2>
+      <p>This page explains how to request deletion of your <strong>Sea Sponge</strong> account (the app also known as "Learnin", published by Dylan Kainth) and the data associated with it. Sea Sponge turns your lecture PDFs and recordings into interactive explainers, quizzes, and spaced-repetition reviews.</p>
+    </div>
+
+    <div class="card">
+      <h2>How to request deletion</h2>
+      <ol>
+        <li>Send an email to <a href="mailto:me@dylankainth.com?subject=Delete%20my%20Sea%20Sponge%20account">me@dylankainth.com</a> from the email address you used to sign up.</li>
+        <li>Use the subject line <strong>"Delete my Sea Sponge account"</strong>.</li>
+        <li>In the message, confirm that you want your account and all associated data permanently deleted.</li>
+        <li>You'll receive a confirmation reply once your request is received, and a second confirmation once deletion is complete.</li>
+      </ol>
+      <p><a class="mail-button" href="mailto:me@dylankainth.com?subject=Delete%20my%20Sea%20Sponge%20account&body=I%20want%20my%20Sea%20Sponge%20account%20and%20all%20associated%20data%20permanently%20deleted.">Email a deletion request</a></p>
+      <p style="margin-top: 14px;">Requests are actioned within <strong>30 days</strong>, and in most cases within a few business days. We may ask you to verify ownership of the account before proceeding.</p>
+    </div>
+
+    <div class="card">
+      <h2>What gets deleted</h2>
+      <p>When your deletion request is processed, the following are permanently removed from our systems:</p>
+      <ul>
+        <li><strong>Account information</strong> — your email address, password hash, name, and learning goal.</li>
+        <li><strong>Uploaded content</strong> — every lecture PDF, audio, and video file you uploaded.</li>
+        <li><strong>Generated study materials</strong> — all explainers, quiz questions, and review cards created from your uploads.</li>
+        <li><strong>Learning activity</strong> — your topics, review history, quiz results, progress, and streaks.</li>
+        <li><strong>Notification data</strong> — your reminder settings and device push-notification token.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>What is kept, and for how long</h2>
+      <ul>
+        <li><strong>Backups.</strong> Residual copies of your data may persist in encrypted database backups for up to <strong>30 days</strong> after deletion, after which they are overwritten on the normal backup rotation.</li>
+        <li><strong>Third-party processing.</strong> Content sent to AI and transcription providers during normal use (see our <a href="/privacy.html">Privacy Policy</a>) is not retained by us; those providers' own retention is governed by their policies.</li>
+        <li><strong>Minimal records.</strong> We may retain a small record that a deletion request was made and completed, and any information we are required to keep to comply with legal obligations. These records do not include your uploaded content or study data.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Deleting individual content without closing your account</h2>
+      <p>You don't need to delete your whole account to remove specific material. Deleting a document or recording inside the app also removes its file and the study materials generated from it.</p>
+    </div>
+
+    <div class="card">
+      <h2>Contact</h2>
+      <p>Questions about account deletion or your data? Email <a href="mailto:me@dylankainth.com">me@dylankainth.com</a>.</p>
+    </div>
+
+    <p class="footer-note">&copy; 2026 Sea Sponge. All rights reserved.</p>
+  </div>
+</body>
+</html>
