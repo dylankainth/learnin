@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -144,7 +144,7 @@ const METRICS: Record<string, MetricConfig> = {
 
 const BAR_W = 9;
 const BAR_GAP = 4;
-const CHART_H = 240;
+const CHART_H = 320;
 
 function shortDate(iso: string): string {
   const d = new Date(iso + "T00:00:00");
@@ -159,6 +159,7 @@ export default function StatDetailScreen() {
   const [wpm, setWpm] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const chartRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     try {
@@ -187,7 +188,7 @@ export default function StatDetailScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
   async function onRefresh() {
     setRefreshing(true);
@@ -213,12 +214,14 @@ export default function StatDetailScreen() {
     );
   }
 
-  const max = derived
+  // Scale: percentages fill to 100, streak bars are on/off, everything else
+  // scales to the busiest day with a little headroom so it isn't flush to the top.
+  const scaleMax = derived
     ? cfg.percent
       ? 100
       : cfg.binary
         ? 1
-        : Math.max(1, ...derived.points.map((p) => p.value ?? 0))
+        : Math.max(1, ...derived.points.map((p) => p.value ?? 0)) * 1.15
     : 1;
 
   return (
@@ -249,39 +252,31 @@ export default function StatDetailScreen() {
             <Text style={[styles.chartLabel, { color: cfg.fg }]}>Last 90 days</Text>
 
             <ScrollView
+              ref={chartRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chartScroll}
+              style={{ height: CHART_H + 34 }}
+              onContentSizeChange={() => chartRef.current?.scrollToEnd({ animated: false })}
             >
-              <View>
+              <View style={{ width: derived.points.length * (BAR_W + BAR_GAP) }}>
                 <View style={[styles.chart, { height: CHART_H }]}>
-                  {derived.points.map((p, i) => {
+                  {derived.points.map((p) => {
                     const h =
                       p.value === null || p.value === 0
                         ? 0
-                        : Math.max(3, (p.value / max) * CHART_H);
+                        : Math.max(3, (p.value / scaleMax) * CHART_H);
                     return (
                       <View key={p.date} style={styles.col}>
-                        {h > 0 ? (
-                          <View
-                            style={{
-                              width: BAR_W,
-                              height: h,
-                              borderRadius: 3,
-                              backgroundColor: cfg.accent,
-                            }}
-                          />
-                        ) : (
-                          <View
-                            style={{
-                              width: BAR_W,
-                              height: 2,
-                              borderRadius: 1,
-                              backgroundColor: cfg.fg,
-                              opacity: 0.18,
-                            }}
-                          />
-                        )}
+                        <View
+                          style={{
+                            width: BAR_W,
+                            height: h > 0 ? h : 2,
+                            borderRadius: h > 0 ? 3 : 1,
+                            backgroundColor: cfg.accent,
+                            opacity: h > 0 ? 1 : 0.18,
+                          }}
+                        />
                       </View>
                     );
                   })}
