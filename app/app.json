@@ -3,7 +3,7 @@
     "name": "Sea Sponge",
     "slug": "sea-sponge",
     "scheme": "seasponge",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "orientation": "portrait",
     "icon": "./assets/appicon.png",
     "userInterfaceStyle": "light",

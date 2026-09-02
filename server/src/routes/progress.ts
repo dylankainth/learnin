@@ -27,6 +27,59 @@ progressRouter.get("/heatmap", async (req: AuthedRequest, res) => {
   res.json({ heatmap });
 });
 
+progressRouter.get("/timeseries", async (req: AuthedRequest, res) => {
+  await ensureSuperuserAuth();
+
+  const days = Math.min(Math.max(Number(req.query.days ?? 90), 7), 365);
+
+  // One pass over the user's whole review history (sorted oldest-first):
+  //  - byDate: reviews + correct (rating >= 3) per calendar day, for retention/counts
+  //  - firstByDate: for each card, the day of its FIRST-ever review and whether it landed
+  const all = await pb.collection("reviews").getFullList({
+    filter: pb.filter("user_id = {:uid}", { uid: req.userId }),
+    fields: "card_id,rating,reviewed_at",
+    sort: "reviewed_at",
+  });
+
+  const byDate: Record<string, { reviews: number; correct: number }> = {};
+  const firstByDate: Record<string, { firstReviews: number; firstCorrect: number }> = {};
+  const seen = new Set<string>();
+
+  for (const r of all) {
+    const day = new Date(r.reviewed_at).toISOString().split("T")[0];
+    const ok = Number(r.rating) >= 3;
+
+    const b = (byDate[day] ??= { reviews: 0, correct: 0 });
+    b.reviews += 1;
+    if (ok) b.correct += 1;
+
+    if (!seen.has(r.card_id)) {
+      seen.add(r.card_id);
+      const f = (firstByDate[day] ??= { firstReviews: 0, firstCorrect: 0 });
+      f.firstReviews += 1;
+      if (ok) f.firstCorrect += 1;
+    }
+  }
+
+  const out: {
+    date: string;
+    reviews: number;
+    correct: number;
+    firstReviews: number;
+    firstCorrect: number;
+  }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - i);
+    const key = dt.toISOString().split("T")[0];
+    const b = byDate[key] ?? { reviews: 0, correct: 0 };
+    const f = firstByDate[key] ?? { firstReviews: 0, firstCorrect: 0 };
+    out.push({ date: key, ...b, ...f });
+  }
+
+  res.json({ days: out });
+});
+
 progressRouter.get("/retention", async (req: AuthedRequest, res) => {
   await ensureSuperuserAuth();
 

@@ -5,6 +5,22 @@ The Android `versionCode` is bumped by one on every release.
 
 ---
 
+## 0.2.6 — 2026-09-02
+
+Android `versionCode` 8.
+
+### New
+- **Tap any home-screen stat card for its full history.** Each of the six
+  coloured cards now opens a full-screen page in that card's colour, showing
+  the metric's headline number and a plain, horizontally scrollable bar chart
+  of the last 90 days (reviews/day, retention %, first-try understanding %,
+  reading speed, streak on/off, weekly reviews).
+- New server endpoint `GET /progress/timeseries?days=` returns per-day review
+  counts, correct counts, and first-review counts in one pass over the user's
+  review history.
+
+---
+
 ## 0.2.5 — 2026-09-02
 
 Android `versionCode` 7.

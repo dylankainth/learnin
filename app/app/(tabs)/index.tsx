@@ -218,43 +218,49 @@ export default function HomeScreen() {
           />
         </LinearGradient>
 
-        {/* Stat cards */}
+        {/* Stat cards — tap through to a full-screen history for each */}
         <View style={styles.cardsGrid}>
-          <View style={[styles.statCard, { backgroundColor: "#cbe1c3" }]}>
-            <MiniBar values={activityBars} barColor="#519336" />
-            <Text style={[styles.statBigNum, { color: "#255312" }]}>{doneToday}</Text>
-            <Text style={[styles.statBigUnit, { color: "#255312" }]}>{doneToday === 1 ? "card today" : "cards today"}</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: "#cbc4e1" }]}>
-            <MiniBar values={retentionBars} barColor="#4d3aa3" />
-            <Text style={[styles.statBigNum, { color: "#1f2184" }]}>{retentionRate}%</Text>
-            <Text style={[styles.statBigUnit, { color: "#1f2184" }]}>retention rate</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: "#f5e6c0" }]}>
-            <MiniBar values={wpmBars.length > 0 ? wpmBars : Array(14).fill(0)} barColor="#a06020" />
-            <Text style={[styles.statBigNum, { color: "#7a3e10" }]}>{avgWpm ?? "—"}</Text>
-            <Text style={[styles.statBigUnit, { color: "#7a3e10" }]}>{avgWpm ? "words/min" : "no data yet"}</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: "#ce9eaa" }]}>
-            <MiniBar values={Array(14).fill(0).map((_, i) => (i < 13 ? 60 + Math.round(Math.random() * 30) : (firstUnderstanding ?? 0)))} barColor="#7a2030" />
-            <Text style={[styles.statBigNum, { color: "#420000" }]}>{firstUnderstanding !== null ? `${firstUnderstanding}%` : "—"}</Text>
-            <Text style={[styles.statBigUnit, { color: "#420000" }]}>first understanding</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: "#f5cdb8" }]}>
-            <MiniBar values={streakBars} barColor="#c2410c" />
-            <Text style={[styles.statBigNum, { color: "#7c2d12" }]}>{streak}</Text>
-            <Text style={[styles.statBigUnit, { color: "#7c2d12" }]}>day streak</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: "#b8dbe1" }]}>
-            <MiniBar values={realBars14} barColor="#0e7490" />
-            <Text style={[styles.statBigNum, { color: "#134e52" }]}>{reviewsThisWeek}</Text>
-            <Text style={[styles.statBigUnit, { color: "#134e52" }]}>reviews this week</Text>
-          </View>
+          {([
+            {
+              slug: "cards", bg: "#cbe1c3", bar: "#519336", fg: "#255312",
+              bars: activityBars, value: String(doneToday),
+              unit: doneToday === 1 ? "card today" : "cards today",
+            },
+            {
+              slug: "retention", bg: "#cbc4e1", bar: "#4d3aa3", fg: "#1f2184",
+              bars: retentionBars, value: `${retentionRate}%`, unit: "retention rate",
+            },
+            {
+              slug: "wpm", bg: "#f5e6c0", bar: "#a06020", fg: "#7a3e10",
+              bars: wpmBars.length > 0 ? wpmBars : Array(14).fill(0),
+              value: avgWpm != null ? String(avgWpm) : "—",
+              unit: avgWpm ? "words/min" : "no data yet",
+            },
+            {
+              slug: "understanding", bg: "#ce9eaa", bar: "#7a2030", fg: "#420000",
+              bars: Array(14).fill(0).map((_, i) => (i < 13 ? 60 + Math.round(Math.random() * 30) : (firstUnderstanding ?? 0))),
+              value: firstUnderstanding !== null ? `${firstUnderstanding}%` : "—",
+              unit: "first understanding",
+            },
+            {
+              slug: "streak", bg: "#f5cdb8", bar: "#c2410c", fg: "#7c2d12",
+              bars: streakBars, value: String(streak), unit: "day streak",
+            },
+            {
+              slug: "reviews", bg: "#b8dbe1", bar: "#0e7490", fg: "#134e52",
+              bars: realBars14, value: String(reviewsThisWeek), unit: "reviews this week",
+            },
+          ] as const).map((c) => (
+            <Pressable
+              key={c.slug}
+              style={({ pressed }) => [styles.statCard, { backgroundColor: c.bg }, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push(`/stat/${c.slug}`)}
+            >
+              <MiniBar values={c.bars} barColor={c.bar} />
+              <Text style={[styles.statBigNum, { color: c.fg }]}>{c.value}</Text>
+              <Text style={[styles.statBigUnit, { color: c.fg }]}>{c.unit}</Text>
+            </Pressable>
+          ))}
         </View>
 
         {/* Topic card */}

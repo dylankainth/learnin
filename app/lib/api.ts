@@ -140,6 +140,12 @@ export const api = {
           "/progress/retention",
         ),
       ),
+    timeseries: (days = 90) =>
+      cachedRequest(`progress:timeseries:${days}`, () =>
+        request<{
+          days: { date: string; reviews: number; correct: number; firstReviews: number; firstCorrect: number }[];
+        }>(`/progress/timeseries?days=${days}`),
+      ),
     seedSampleData: () => request<{ seeded: number }>("/progress/seed-sample-data", { method: "POST" }),
     firstUnderstanding: () =>
       cachedRequest("progress:first-understanding", () =>
