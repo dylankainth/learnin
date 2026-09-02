@@ -3,7 +3,7 @@
     "name": "Sea Sponge",
     "slug": "sea-sponge",
     "scheme": "seasponge",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "orientation": "portrait",
     "icon": "./assets/appicon.png",
     "userInterfaceStyle": "light",
@@ -25,6 +25,14 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#6C4FE0"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#9ECEC2",
+          "image": "./assets/spongey-wink.png",
+          "imageWidth": 180
         }
       ],
       [

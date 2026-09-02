@@ -5,6 +5,21 @@ The Android `versionCode` is bumped by one on every release.
 
 ---
 
+## 0.2.5 — 2026-09-02
+
+Android `versionCode` 7.
+
+### New
+- **Custom launch screen.** The cold-start splash was Expo's default grey
+  circles-and-grid placeholder; it's now the winking Spongey on the teal
+  (`#9ECEC2`) brand background. Configured via an `expo-splash-screen` plugin
+  block in `app.json` (source of truth for prebuild) plus regenerated
+  `android/.../drawable-*/splashscreen_logo.png` and the `splashscreen_background`
+  colour. (Android 12+ SplashScreen API — icon is masked to a circle, background
+  is a solid colour, no custom animation possible.)
+
+---
+
 ## 0.2.4 — 2026-09-02
 
 Android `versionCode` 6.
