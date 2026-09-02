@@ -18,6 +18,10 @@ Android `versionCode` 8.
 - New server endpoint `GET /progress/timeseries?days=` returns per-day review
   counts, correct counts, and first-review counts in one pass over the user's
   review history.
+- **"Progress by topic" donut** on the home screen (between the stat cards and
+  Next-up): studied cards split by topic, each segment in that topic's accent
+  colour, total in the centre, legend beside. Topics list API now returns
+  `studied_count` (cards with `reps > 0`) per topic.
 
 ---
 
